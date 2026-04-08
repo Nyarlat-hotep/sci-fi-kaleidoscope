@@ -165,19 +165,27 @@ float fractal(vec2 p, float t) {
 float swarm(vec2 p, float t) {
   float v = 0.0;
   for (int i = 0; i < 22; i++) {
-    float fi = float(i);
+    float fi  = float(i);
     float phi = fi * 2.39996323;
     float orb = 0.07 + fract(fi*0.618) * 0.4;
     float spd = 0.09 + fract(fi*0.317) * 0.28;
     float ang = t*spd + phi;
-    vec2 pos = vec2(cos(ang), sin(ang)) * orb;
-    float d = length(p - pos);
-    float sz = 0.011 + fract(fi*0.471) * 0.02;
-    v += smoothstep(sz, 0.0, d);
-    v += smoothstep(sz*5.5, sz, d) * 0.22;
-    vec2 dir = normalize(pos + vec2(sin(ang+PI*0.5), cos(ang+PI*0.5)) * 0.001);
-    float trail = length(p - pos + dir*sz*2.5);
-    v += smoothstep(sz*3.0, 0.0, trail) * 0.18;
+    vec2  pos = vec2(cos(ang), sin(ang)) * orb;
+    float sz  = 0.011 + fract(fi*0.471) * 0.02;
+
+    // Use squared distance to avoid sqrt for core + halo tests
+    vec2  dp  = p - pos;
+    float d2  = dot(dp, dp);
+    float sz2 = sz * sz;
+    v += smoothstep(sz2,       0.0,        d2);
+    v += smoothstep(sz2*30.25, sz2,        d2) * 0.22;  // 5.5^2 = 30.25
+
+    // Trail: tangent direction is just the perpendicular to the radial vector —
+    // no normalize needed, derive it analytically from ang
+    vec2 tangent = vec2(-sin(ang), cos(ang));            // unit tangent, no normalize
+    vec2 trailDp = dp + tangent * (sz * 2.5);
+    float trail2 = dot(trailDp, trailDp);
+    v += smoothstep(sz2*9.0, 0.0, trail2) * 0.18;       // 3^2 = 9
   }
   return clamp(v, 0.0, 1.0);
 }
