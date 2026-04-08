@@ -1,176 +1,302 @@
+/* ── Container ──────────────────────────────────────────────────────────── */
+
 .controls {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
   z-index: 10;
-  background: rgba(5, 8, 16, 0.82);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border-top: 1px solid rgba(0, 229, 255, 0.18);
-  padding: 10px 24px 12px;
+  background: rgba(4, 7, 14, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid rgba(0, 229, 255, 0.16);
+  padding: 9px 20px 11px;
   display: flex;
-  gap: 28px;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* ── Rows ───────────────────────────────────────────────────────────────── */
+
+.ctrl-row-top,
+.ctrl-row-bottom {
+  display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 0;
+  flex-wrap: wrap;
+  padding: 5px 0;
+}
+
+/* ── Row divider ────────────────────────────────────────────────────────── */
+
+.row-divider {
+  height: 1px;
+  background: rgba(0, 229, 255, 0.1);
+  margin: 0 -20px;
+}
+
+/* ── Section ────────────────────────────────────────────────────────────── */
+
+.ctrl-section {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 0 16px;
+}
+
+.ctrl-section:first-child {
+  padding-left: 0;
+}
+
+.ctrl-section-label {
+  font-family: var(--font-mono);
+  font-size: 0.52rem;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: rgba(0, 229, 255, 0.38);
+}
+
+.ctrl-inline {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
   flex-wrap: wrap;
 }
 
-/* ── Group ──────────────────────────────────────────────────────────── */
+/* ── Vertical dividers between sections ────────────────────────────────── */
+
+.ctrl-divider {
+  width: 1px;
+  height: 44px;
+  background: rgba(0, 229, 255, 0.1);
+  align-self: center;
+  flex-shrink: 0;
+}
+
+/* ── Individual group (slider + label) ─────────────────────────────────── */
 
 .ctrl-group {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
 }
 
 .ctrl-label {
-  font-size: 0.58rem;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: rgba(0, 229, 255, 0.45);
   font-family: var(--font-mono);
+  font-size: 0.52rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(0, 229, 255, 0.42);
 }
 
-.ctrl-row {
-  display: flex;
-  gap: 6px;
-  align-items: center;
+/* ── Shape grid (2 rows × 4) ────────────────────────────────────────────── */
+
+.shape-grid {
+  display: grid;
+  grid-template-columns: repeat(4, auto);
+  gap: 4px;
 }
 
-/* ── Palette swatches ─────────────────────────────────────────────── */
+.shape-btn {
+  background: transparent;
+  border: 1px solid rgba(0, 229, 255, 0.18);
+  border-radius: 3px;
+  color: rgba(180, 210, 230, 0.55);
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.06em;
+  padding: 3px 7px;
+  cursor: pointer;
+  transition: all 0.13s;
+  white-space: nowrap;
+  min-width: 36px;
+  text-align: center;
+}
+
+.shape-btn:hover {
+  border-color: rgba(0, 229, 255, 0.45);
+  color: #c8d8e8;
+}
+
+.shape-btn.active {
+  border-color: #00e5ff;
+  color: #00e5ff;
+  background: rgba(0, 229, 255, 0.07);
+  box-shadow: 0 0 7px rgba(0, 229, 255, 0.28);
+}
+
+/* ── Symmetry step buttons ──────────────────────────────────────────────── */
+
+.step-btn {
+  background: transparent;
+  border: 1px solid rgba(0, 229, 255, 0.18);
+  border-radius: 3px;
+  color: rgba(180, 210, 230, 0.55);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  width: 30px;
+  height: 26px;
+  padding: 0;
+  cursor: pointer;
+  transition: all 0.13s;
+}
+
+.step-btn:hover {
+  border-color: rgba(0, 229, 255, 0.45);
+  color: #c8d8e8;
+}
+
+.step-btn.active {
+  border-color: #00e5ff;
+  color: #00e5ff;
+  background: rgba(0, 229, 255, 0.07);
+  box-shadow: 0 0 7px rgba(0, 229, 255, 0.28);
+}
+
+/* ── Palette swatches ───────────────────────────────────────────────────── */
 
 .swatch {
-  width: 26px;
-  height: 26px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   border: 2px solid transparent;
   cursor: pointer;
-  transition: border-color 0.15s, transform 0.12s, box-shadow 0.15s;
+  transition: transform 0.12s, border-color 0.13s, box-shadow 0.13s;
   padding: 0;
   flex-shrink: 0;
 }
 
 .swatch:hover {
-  transform: scale(1.12);
+  transform: scale(1.15);
 }
 
 .swatch.active {
   border-color: #00e5ff;
-  box-shadow: 0 0 0 2px rgba(0, 229, 255, 0.35), 0 0 10px rgba(0, 229, 255, 0.4);
+  box-shadow: 0 0 0 2px rgba(0, 229, 255, 0.32), 0 0 9px rgba(0, 229, 255, 0.4);
 }
 
-/* ── Pill buttons (shape) ─────────────────────────────────────────── */
-
-.pill {
-  background: transparent;
-  border: 1px solid rgba(0, 229, 255, 0.2);
+/* Smaller BG swatches */
+.swatch-sm {
+  width: 16px;
+  height: 16px;
   border-radius: 3px;
-  color: rgba(200, 220, 235, 0.6);
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  letter-spacing: 0.08em;
-  padding: 4px 10px;
-  cursor: pointer;
-  transition: all 0.15s;
-  white-space: nowrap;
+  border: 1px solid rgba(255,255,255,0.15);
 }
 
-.pill:hover {
-  border-color: rgba(0, 229, 255, 0.5);
-  color: #c8d8e8;
-}
-
-.pill.active {
+.swatch-sm.active {
   border-color: #00e5ff;
-  color: #00e5ff;
-  box-shadow: 0 0 8px rgba(0, 229, 255, 0.3);
-  background: rgba(0, 229, 255, 0.06);
+  box-shadow: 0 0 5px rgba(0, 229, 255, 0.5);
 }
 
-/* ── Step buttons (symmetry) ─────────────────────────────────────── */
+/* ── Sliders ────────────────────────────────────────────────────────────── */
 
-.step {
-  background: transparent;
-  border: 1px solid rgba(0, 229, 255, 0.2);
-  border-radius: 3px;
-  color: rgba(200, 220, 235, 0.6);
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  width: 30px;
-  height: 28px;
-  padding: 0;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.step:hover {
-  border-color: rgba(0, 229, 255, 0.5);
-  color: #c8d8e8;
-}
-
-.step.active {
-  border-color: #00e5ff;
-  color: #00e5ff;
-  box-shadow: 0 0 8px rgba(0, 229, 255, 0.3);
-  background: rgba(0, 229, 255, 0.06);
-}
-
-/* ── Speed slider ─────────────────────────────────────────────────── */
-
-.speed-slider {
+.ctrl-slider {
   -webkit-appearance: none;
   appearance: none;
-  width: 120px;
-  height: 4px;
+  width: 88px;
+  height: 3px;
   border-radius: 2px;
-  background: rgba(0, 229, 255, 0.15);
+  background: rgba(0, 229, 255, 0.13);
   outline: none;
   cursor: pointer;
 }
 
-.speed-slider::-webkit-slider-thumb {
+.ctrl-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   background: #00e5ff;
-  box-shadow: 0 0 6px rgba(0, 229, 255, 0.7);
+  box-shadow: 0 0 5px rgba(0, 229, 255, 0.8);
   cursor: pointer;
-  transition: transform 0.12s;
+  transition: transform 0.1s;
 }
 
-.speed-slider::-webkit-slider-thumb:hover {
-  transform: scale(1.25);
+.ctrl-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.3);
 }
 
-.speed-slider::-moz-range-thumb {
-  width: 14px;
-  height: 14px;
+.ctrl-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   background: #00e5ff;
-  box-shadow: 0 0 6px rgba(0, 229, 255, 0.7);
+  box-shadow: 0 0 5px rgba(0, 229, 255, 0.8);
   border: none;
   cursor: pointer;
 }
 
-/* ── Responsive ───────────────────────────────────────────────────── */
+/* ── Glitch button ──────────────────────────────────────────────────────── */
 
-@media (max-width: 700px) {
+.glitch-btn {
+  background: rgba(255, 50, 0, 0.07);
+  border: 1px solid rgba(255, 80, 20, 0.35);
+  border-radius: 3px;
+  color: rgba(255, 100, 50, 0.8);
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.14em;
+  padding: 5px 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.14s;
+  align-self: flex-end;
+}
+
+.glitch-btn:hover {
+  background: rgba(255, 50, 0, 0.15);
+  border-color: rgba(255, 80, 20, 0.65);
+  color: #ff6030;
+  box-shadow: 0 0 10px rgba(255, 60, 0, 0.3);
+}
+
+.glitch-btn.glitching {
+  color: #ff2200;
+  border-color: #ff2200;
+  background: rgba(255, 30, 0, 0.2);
+  box-shadow: 0 0 18px rgba(255, 30, 0, 0.6);
+  animation: glitch-pop 0.42s ease-out;
+}
+
+@keyframes glitch-pop {
+  0%   { transform: scale(1.18) skewX(-6deg); }
+  40%  { transform: scale(0.94) skewX(4deg); }
+  70%  { transform: scale(1.05) skewX(-2deg); }
+  100% { transform: scale(1)    skewX(0deg); }
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .ctrl-slider {
+    width: 70px;
+  }
+
+  .ctrl-section {
+    padding: 0 10px;
+  }
+}
+
+@media (max-width: 640px) {
   .controls {
-    gap: 14px;
-    padding: 10px 14px 14px;
-    justify-content: flex-start;
+    padding: 7px 12px 10px;
+    max-height: 50vh;
+    overflow-y: auto;
   }
 
-  .ctrl-group {
-    flex-direction: row;
-    align-items: center;
-    gap: 8px;
+  .ctrl-divider {
+    display: none;
   }
 
-  .ctrl-label {
-    min-width: 40px;
+  .ctrl-row-top,
+  .ctrl-row-bottom {
+    gap: 10px;
+  }
+
+  .ctrl-slider {
+    width: 80px;
   }
 }
