@@ -13,10 +13,10 @@ const SHAPES = [
   { id: 'SWM', label: 'Swarm'     },
   { id: 'LQD', label: 'Liquid'    },
   { id: 'TNL', label: 'Tunnel'    },
-  // ── Wireframe / Sci-fi ───────
-  { id: 'WIR', label: 'Wire Grid' },
-  { id: 'MTX', label: 'Matrix'    },
-  { id: 'SCN', label: 'Scanlines' },
+  // ── Wireframe ────────────────
+  { id: 'BOX', label: 'Wire Box'  },
+  { id: 'SPH', label: 'Sphere'    },
+  { id: 'GRD', label: 'Wire Grid' },
   { id: 'HEX', label: 'Hex Mesh'  },
 ]
 

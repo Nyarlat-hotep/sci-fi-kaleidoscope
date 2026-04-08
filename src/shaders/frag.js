@@ -218,143 +218,145 @@ float tunnel(vec2 p, float t) {
   return clamp((grid + streak) * (0.35 + depthFade*0.65), 0.0, 1.0);
 }
 
-// ── Pattern 8: Wire Grid ──────────────────────────────────────────────────
-// Holographic orthographic grid with depth lines and glowing intersections
+// Shared: axis-aligned box SDF
+float sdBox(vec2 p, vec2 b) {
+  vec2 d = abs(p) - b;
+  return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0);
+}
+
+// ── Pattern 8: Wire Boxes ─────────────────────────────────────────────────
+// Nested hollow rectangle outlines scrolling inward — neon Tron corridor
 
 float wireGrid(vec2 p, float t) {
-  p *= 5.0;
-  vec2 fp = fract(p);
-  vec2 ip = floor(p);
+  float v = 0.0;
+  float W = 0.009; // stroke half-width
 
-  // Main grid lines
-  float gx = smoothstep(0.055, 0.0, abs(fp.x - 0.5));
-  float gy = smoothstep(0.055, 0.0, abs(fp.y - 0.5));
-  float grid = max(gx, gy);
+  // Zoom tunnel: 8 nested rectangles scrolling toward center
+  float scroll = fract(t * 0.14);
+  for (int i = 0; i < 8; i++) {
+    float scale = fract(float(i) / 8.0 + scroll);
+    float ry  = 0.04 + scale * 0.45;
+    float rx  = ry * 1.3;
+    float d   = sdBox(p, vec2(rx, ry));
+    float br  = 0.35 + (1.0 - scale) * 0.65; // closer = brighter
 
-  // Intersection glow
-  float node = smoothstep(0.16, 0.0, length(fp - 0.5));
-  float nh = hash(ip);
-  float pulse = sin(t*1.4 + nh*TAU) * 0.5 + 0.5;
-  node *= 0.4 + 0.6*pulse;
+    // Stroke edge
+    v += smoothstep(W, 0.0, abs(d)) * br;
 
-  // Diagonal cross-lines every other cell
-  float dh = hash(ip + vec2(5.5, 2.2));
-  float diag = 0.0;
-  if (dh > 0.55) {
-    diag = smoothstep(0.04, 0.0, abs(fp.x - fp.y)) * 0.5;
+    // Glowing corner nodes
+    float cd = 0.013;
+    v += (smoothstep(cd, 0.0, length(p - vec2( rx,  ry)))
+        + smoothstep(cd, 0.0, length(p - vec2(-rx,  ry)))
+        + smoothstep(cd, 0.0, length(p - vec2( rx, -ry)))
+        + smoothstep(cd, 0.0, length(p - vec2(-rx, -ry)))) * br * 0.8;
   }
 
-  // Data pulse that races along the x-axis
-  float ph = hash(ip + vec2(0.0, ip.y));
-  float travel = fract(p.x * 0.5 - t * (0.6 + ph*0.8));
-  float dataPulse = smoothstep(0.08, 0.0, abs(fp.y - 0.5))
-                  * smoothstep(0.04, 0.0, abs(travel - 0.5)) * 1.8;
+  // Center axis connector lines
+  v += smoothstep(0.005, 0.0, abs(p.x)) * smoothstep(0.52, 0.0, abs(p.y)) * 0.5;
+  v += smoothstep(0.005, 0.0, abs(p.y)) * smoothstep(0.68, 0.0, abs(p.x)) * 0.5;
 
-  return clamp(grid*0.7 + node + diag + dataPulse, 0.0, 1.0);
-}
-
-// ── Pattern 9: Matrix Rain ────────────────────────────────────────────────
-// Columns of falling glyphs — bright head with fading trail
-
-float matrixRain(vec2 p, float t) {
-  p *= vec2(9.0, 14.0);
-  vec2 ip = floor(p);
-  vec2 fp = fract(p);
-
-  // Each column has a different fall speed and phase
-  float col = ip.x;
-  float speed  = 0.8 + hash(vec2(col, 0.0)) * 2.2;
-  float phase  = hash(vec2(col, 1.0)) * 8.0;
-  float offset = hash(vec2(col, 2.0)) * 30.0;
-
-  float head = fract(t*speed + phase);
-  float headY = head * float(14);          // head position in glyph rows
-  float rowY  = ip.y + offset;
-
-  // Distance from head (wrapping)
-  float dist = mod(headY - mod(rowY, 14.0), 14.0);
-
-  // Bright head glyph
-  float bright = smoothstep(2.0, 0.0, dist);
-  // Fading trail
-  float trail  = smoothstep(8.0, 0.0, dist) * 0.35;
-
-  // Each glyph is a small rectangle
-  float glyph = smoothstep(0.08, 0.0, abs(fp.x - 0.5))
-              * smoothstep(0.1, 0.0, abs(fp.y - 0.5));
-
-  // Random glyph flicker
-  float flicker = step(0.35, hash(vec2(ip.x + floor(t*speed)*7.1, ip.y)));
-
-  return clamp((bright + trail) * glyph * flicker, 0.0, 1.0);
-}
-
-// ── Pattern 10: Scanlines ─────────────────────────────────────────────────
-// CRT/terminal sweep beams with interference patterns
-
-float scanlines(vec2 p, float t) {
-  float v = 0.0;
-
-  // Primary scan beam
-  float beam = sin(p.y*28.0 - t*4.5) * 0.5 + 0.5;
-  beam = pow(beam, 4.0) * 0.9;
-
-  // Secondary interference (different freq)
-  float beam2 = sin(p.y*11.5 + t*1.8) * 0.5 + 0.5;
-  beam2 = pow(beam2, 3.0) * 0.5;
-
-  // Diagonal moiré
-  float moire = sin((p.x + p.y)*18.0 + t*1.1) * 0.5 + 0.5;
-  moire = pow(moire, 6.0) * 0.6;
-
-  // Horizontal glitch lines
-  float glitchSeed = hash(vec2(floor(p.y*22.0), floor(t*6.0)));
-  float glitchLine = smoothstep(0.06, 0.0, abs(fract(p.y*22.0) - 0.5)) * step(0.82, glitchSeed);
-
-  // Radial pulse from center
-  float r = length(p);
-  float radial = sin(r*16.0 - t*3.2) * 0.5 + 0.5;
-  radial = pow(radial, 5.0) * 0.4;
-
-  v = beam*0.45 + beam2*0.25 + moire*0.2 + glitchLine*0.8 + radial*0.2;
   return clamp(v, 0.0, 1.0);
 }
 
+// ── Pattern 9: Wire Sphere ────────────────────────────────────────────────
+// Orthographic wireframe globe — latitude rings + slowly spinning longitudes
+
+float matrixRain(vec2 p, float t) {
+  float R  = 0.41;
+  float r2 = dot(p, p);
+  float R2 = R * R;
+  float r  = sqrt(r2);
+
+  // Outer stroke ring
+  float outline = smoothstep(0.013, 0.0, abs(r - R));
+  if (r2 >= R2) return outline;
+
+  float z = sqrt(R2 - r2);
+
+  // ── Latitude lines (horizontal circles in orthographic projection) ────
+  float sinPhi  = clamp(p.y / R, -1.0, 1.0);
+  float lat     = asin(sinPhi);
+  float latStep = PI / 8.0;
+  float modLat  = mod(lat + PI * 0.5, latStep);
+  float latLine = smoothstep(0.030, 0.0, min(modLat, latStep - modLat));
+
+  // ── Longitude lines (vertical ellipses) — sphere spins slowly ────────
+  float lon     = atan(p.x, z) + t * 0.16;
+  float lonStep = PI / 9.0;
+  float modLon  = mod(lon, lonStep);
+  // Squash line width near poles so they don't crowd
+  float cosFactor = max(0.12, sqrt(1.0 - sinPhi * sinPhi));
+  float lonLine   = smoothstep(0.036 / cosFactor, 0.0, min(modLon, lonStep - modLon));
+
+  return clamp(outline + latLine + lonLine, 0.0, 1.0);
+}
+
+// ── Pattern 10: Wire Rect Grid ────────────────────────────────────────────
+// Tiled hollow squares — stroke only, glowing corners, per-cell pulse
+
+float scanlines(vec2 p, float t) {
+  p *= 4.0;
+  vec2 ip = floor(p);
+  vec2 fp = fract(p) - 0.5; // center cell coords
+
+  float h     = hash(ip);
+  float pulse = sin(t * 1.3 + h * TAU) * 0.5 + 0.5;
+
+  // Stroke-only box outline
+  float d      = sdBox(fp, vec2(0.34, 0.34));
+  float W      = 0.05;
+  float stroke = smoothstep(W, 0.0, abs(d)) * (0.3 + 0.7 * pulse);
+
+  // Corner glow nodes
+  float cd = 0.055;
+  float corners = (smoothstep(cd, 0.0, length(fp - vec2( 0.34,  0.34)))
+                 + smoothstep(cd, 0.0, length(fp - vec2(-0.34,  0.34)))
+                 + smoothstep(cd, 0.0, length(fp - vec2( 0.34, -0.34)))
+                 + smoothstep(cd, 0.0, length(fp - vec2(-0.34, -0.34))))
+                * (0.4 + 0.6 * pulse) * 0.55;
+
+  // Rare bright filled cell (data highlight)
+  float bright = step(0.85, h) * smoothstep(0.38, 0.0, abs(d)) * 0.35;
+
+  return clamp(stroke + corners + bright, 0.0, 1.0);
+}
+
 // ── Pattern 11: Hex Mesh ──────────────────────────────────────────────────
-// Dense wireframe hexagonal mesh with edge glow and data pulses
+// Pure stroke-only hexagonal lattice — neon edges, vertex nodes, data packets
 
 float hexMesh(vec2 p, float t) {
-  p *= 5.5;
-
-  // Hex grid dual-lattice
+  p *= 5.0;
   vec2 hs = vec2(1.0, 1.732);
-  vec2 a = mod(p, hs) - hs*0.5;
-  vec2 b = mod(p - hs*0.5, hs) - hs*0.5;
-  vec2 gv = dot(a,a) < dot(b,b) ? a : b;
-  vec2 ip = (dot(a,a) < dot(b,b)) ? floor(p/hs) : floor((p - hs*0.5)/hs);
+  vec2 a  = mod(p, hs) - hs * 0.5;
+  vec2 b  = mod(p - hs * 0.5, hs) - hs * 0.5;
+  vec2 gv = dot(a, a) < dot(b, b) ? a : b;
+  vec2 ip = dot(a, a) < dot(b, b) ? floor(p / hs) : floor((p - hs * 0.5) / hs);
 
-  float d = hexDist(gv);
-  float hexR = 0.44;
+  float d   = hexDist(gv);
+  float R   = 0.44;
+  float W   = 0.025;
 
-  // Sharp wireframe edges only (no fill)
-  float edge = smoothstep(0.035, 0.0, abs(d - hexR));
+  // Stroke-only hex edge
+  float edge = smoothstep(W, 0.0, abs(d - R));
 
-  // Inner division lines (Y axis)
-  float innerY = smoothstep(0.025, 0.0, abs(gv.x)) * smoothstep(hexR, hexR-0.08, d) * 0.4;
+  // Vertex glow nodes at each of the 6 corners
+  float vg = 0.0;
+  for (int k = 0; k < 6; k++) {
+    float ang  = float(k) * PI / 3.0;
+    vg += smoothstep(0.065, 0.0, length(gv - vec2(cos(ang), sin(ang)) * R));
+  }
+  vg *= 0.45;
 
-  // Vertex nodes
-  float corner = smoothstep(0.08, 0.0, length(gv) - hexR + 0.04) * 0.6;
+  // Per-cell pulse
+  float ch    = hash(ip);
+  float pulse = sin(t * 1.0 + ch * TAU) * 0.5 + 0.5;
 
-  // Cell pulse
-  float ch = hash(ip);
-  float pulse = sin(t*1.1 + ch*TAU) * 0.5 + 0.5;
-  float cellGlow = smoothstep(hexR-0.05, hexR-0.18, d) * pulse * 0.25;
+  // Data packet orbiting the hex edge
+  float edgeAng = atan(gv.y, gv.x);
+  float packet  = smoothstep(W, 0.0, abs(d - R))
+                * smoothstep(0.08, 0.0, abs(mod(edgeAng / TAU - t * 0.28 * (0.5 + ch), 1.0) - 0.5)) * 1.4;
 
-  // Data packets travelling along edges
-  float ePulse = fract(d*3.0 - t*(0.5 + ch*0.4));
-  float packet = smoothstep(0.035, 0.0, abs(d - hexR)) * smoothstep(0.06, 0.0, abs(ePulse - 0.5)) * 1.2;
-
-  return clamp(edge + innerY + corner + cellGlow + packet, 0.0, 1.0);
+  return clamp(edge + vg * (0.4 + 0.6 * pulse) + packet, 0.0, 1.0);
 }
 
 // ── Palette mapping ────────────────────────────────────────────────────────
