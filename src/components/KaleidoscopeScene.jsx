@@ -6,18 +6,23 @@ import { frag } from '../shaders/frag'
 import { PALETTES } from '../data/palettes'
 import { BG_PRESETS } from '../data/bgColors'
 
-function KaleidoscopeMesh({
-  paletteIdx, shapeType, symmetry, speed,
-  hueShift, hueCycleSpeed,
-  brightness, contrast,
-  bgColorIdx,
-  zoomPulse, rotSpeed, warp,
-  glitchTrigger,
-}) {
-  const matRef = useRef()
+function KaleidoscopeMesh(props) {
+  const {
+    paletteIdx, shapeType, symmetry, speed,
+    hueShift, hueCycleSpeed,
+    brightness, contrast,
+    bgColorIdx,
+    zoomPulse, rotSpeed, warp,
+    glitchTrigger,
+  } = props
+
+  const matRef   = useRef()
+  const propsRef = useRef(props)  // always holds latest props, no stale closures
+  propsRef.current = props
+
   const { size } = useThree()
 
-  // Build stable uniforms object once — mutate .value directly
+  // Build stable uniforms object once — all mutations go through useFrame / effects below
   const uniforms = useMemo(() => ({
     uTime:       { value: 0 },
     uSpeed:      { value: speed },
@@ -36,16 +41,7 @@ function KaleidoscopeMesh({
     uGlitch:     { value: 0 },
   }), []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Sync uniforms reactively ─────────────────────────────────────────────
-  useEffect(() => { if (matRef.current) matRef.current.uniforms.uSpeed.value     = speed      }, [speed])
-  useEffect(() => { if (matRef.current) matRef.current.uniforms.uSymmetry.value  = symmetry   }, [symmetry])
-  useEffect(() => { if (matRef.current) matRef.current.uniforms.uShapeType.value = shapeType  }, [shapeType])
-  useEffect(() => { if (matRef.current) matRef.current.uniforms.uHueShift.value  = hueShift   }, [hueShift])
-  useEffect(() => { if (matRef.current) matRef.current.uniforms.uBrightness.value = brightness }, [brightness])
-  useEffect(() => { if (matRef.current) matRef.current.uniforms.uContrast.value  = contrast   }, [contrast])
-  useEffect(() => { if (matRef.current) matRef.current.uniforms.uZoomPulse.value = zoomPulse  }, [zoomPulse])
-  useEffect(() => { if (matRef.current) matRef.current.uniforms.uWarp.value      = warp       }, [warp])
-
+  // Object-valued uniforms — update via effect (creates Three.js objects)
   useEffect(() => {
     if (!matRef.current) return
     matRef.current.uniforms.uPalette.value = PALETTES[paletteIdx].colors.map(c => new THREE.Vector3(...c))
@@ -56,38 +52,37 @@ function KaleidoscopeMesh({
     matRef.current.uniforms.uBgColor.value = new THREE.Vector3(...BG_PRESETS[bgColorIdx].color)
   }, [bgColorIdx])
 
-  // Glitch trigger — set to 1 and let useFrame decay it
-  useEffect(() => {
-    if (!matRef.current || glitchTrigger === 0) return
-    matRef.current.uniforms.uGlitch.value = 1.0
-  }, [glitchTrigger])
-
-  // Aspect ratio on resize
   useEffect(() => {
     if (!matRef.current) return
     matRef.current.uniforms.uAspect.value = size.width / size.height
   }, [size])
 
+  // Glitch trigger
+  useEffect(() => {
+    if (!matRef.current || glitchTrigger === 0) return
+    matRef.current.uniforms.uGlitch.value = 1.0
+  }, [glitchTrigger])
+
+  // Sync ALL scalar uniforms every frame via propsRef — most reliable R3F pattern,
+  // avoids useEffect timing issues with the custom R3F reconciler
   useFrame((_, delta) => {
     if (!matRef.current) return
     const u = matRef.current.uniforms
+    const p = propsRef.current
 
-    u.uTime.value += delta
+    u.uTime.value      += delta
+    u.uShapeType.value  = p.shapeType
+    u.uSymmetry.value   = p.symmetry
+    u.uSpeed.value      = p.speed
+    u.uHueShift.value   = p.hueShift
+    u.uBrightness.value = p.brightness
+    u.uContrast.value   = p.contrast
+    u.uZoomPulse.value  = p.zoomPulse
+    u.uWarp.value       = p.warp
 
-    // Rotation accumulates
-    if (rotSpeed > 0.001) {
-      u.uRotOffset.value += rotSpeed * 0.45 * delta
-    }
-
-    // Hue cycle accumulates
-    if (hueCycleSpeed > 0.001) {
-      u.uHueAngle.value += hueCycleSpeed * 0.8 * delta
-    }
-
-    // Glitch decays
-    if (u.uGlitch.value > 0.001) {
-      u.uGlitch.value = Math.max(0, u.uGlitch.value - delta * 2.2)
-    }
+    if (p.rotSpeed      > 0.001) u.uRotOffset.value += p.rotSpeed      * 0.45 * delta
+    if (p.hueCycleSpeed > 0.001) u.uHueAngle.value  += p.hueCycleSpeed * 0.8  * delta
+    if (u.uGlitch.value > 0.001) u.uGlitch.value     = Math.max(0, u.uGlitch.value - delta * 2.2)
   })
 
   return (
