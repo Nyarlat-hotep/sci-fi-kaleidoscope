@@ -16,9 +16,10 @@ function KaleidoscopeMesh(props) {
     glitchTrigger,
   } = props
 
-  const matRef   = useRef()
-  const propsRef = useRef(props)  // always holds latest props, no stale closures
-  propsRef.current = props
+  const matRef      = useRef()
+  const propsRef    = useRef(props)  // always holds latest props, no stale closures
+  propsRef.current  = props
+  const symRef      = useRef(symmetry)  // smoothly lerped symmetry value
 
   const { size } = useThree()
 
@@ -72,7 +73,9 @@ function KaleidoscopeMesh(props) {
 
     u.uTime.value      += delta
     u.uShapeType.value  = p.shapeType
-    u.uSymmetry.value   = p.symmetry
+    // Lerp symmetry for a smooth morph animation
+    symRef.current      = symRef.current + (p.symmetry - symRef.current) * Math.min(1, delta * 7)
+    u.uSymmetry.value   = symRef.current
     u.uSpeed.value      = p.speed
     u.uHueShift.value   = p.hueShift
     u.uBrightness.value = p.brightness
