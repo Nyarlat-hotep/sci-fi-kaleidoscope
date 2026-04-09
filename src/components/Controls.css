@@ -91,6 +91,10 @@
   opacity: 1;
 }
 
+@media (hover: none) {
+  .sidebar-tab-tooltip { display: none; }
+}
+
 .sidebar-tab-label {
   font-family: var(--font-mono);
   font-size: 0.6rem;
