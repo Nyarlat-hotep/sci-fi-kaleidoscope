@@ -413,7 +413,7 @@ void main() {
     r *= 1.0 + uZoomPulse * 0.3 * sin(uTime * 1.22);
   }
   if (uBreath > 0.001) {
-    r *= 1.0 - uBreath * 0.32;
+    r *= 1.0 - uBreath * 0.48;
   }
 
   a += uRotOffset;

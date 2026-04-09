@@ -68,7 +68,11 @@ function KaleidoscopeMesh(props) {
     const u = matRef.current.uniforms
     const p = propsRef.current
 
-    u.uTime.value      += delta
+    // Slow pattern speed during breath modes — calming effect
+    const breathSpeedMult = p.breathMode
+      ? 0.28 + 0.72 * (1 - breathCurrentRef.current.breath * 0.6)
+      : 1.0
+    u.uTime.value      += delta * breathSpeedMult
     u.uShapeType.value  = p.shapeType
     symRef.current      = symRef.current + (p.symmetry - symRef.current) * Math.min(1, delta * 7)
     u.uSymmetry.value   = symRef.current
@@ -96,21 +100,22 @@ function KaleidoscopeMesh(props) {
       if (phase.name !== 'HOLD') br.lastActivePhaseName = phase.name
       const holdAtPeak = br.lastActivePhaseName === 'INHALE'
 
+      const focusMult = p.breathMode === 'focus' ? 0.5 : 0.18
       if (phase.name === 'INHALE') {
-        targetBrightness = 1.0 + 0.5 * progress
+        targetBrightness = 1.0 + 0.7 * progress
         targetBreath     = progress
         targetZoomPulse  = 0
-        targetWarp       = p.breathMode === 'focus' ? 0.3 * progress : 0
+        targetWarp       = focusMult * progress
       } else if (phase.name === 'EXHALE') {
-        targetBrightness = 1.5 - 0.5 * progress
+        targetBrightness = 1.7 - 0.7 * progress
         targetBreath     = 1.0 - progress
         targetZoomPulse  = 0
-        targetWarp       = p.breathMode === 'focus' ? 0.3 * (1 - progress) : 0
+        targetWarp       = focusMult * (1 - progress)
       } else { // HOLD
-        targetBrightness = holdAtPeak ? 1.5 : 1.0
+        targetBrightness = holdAtPeak ? 1.7 : 1.0
         targetBreath     = holdAtPeak ? 1.0 : 0.0
         targetZoomPulse  = 0
-        targetWarp       = 0
+        targetWarp       = holdAtPeak ? focusMult : 0
       }
 
       if (br.elapsed >= phase.dur) {
