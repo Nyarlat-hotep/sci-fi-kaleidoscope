@@ -12,11 +12,11 @@ uniform float uHueShift;
 uniform float uHueAngle;
 uniform float uBrightness;
 uniform float uContrast;
-uniform vec3  uBgColor;
 uniform float uZoomPulse;
 uniform float uRotOffset;
 uniform float uWarp;
-uniform float uGlitch;
+uniform vec2  uResolution;
+uniform float uTunnelDir;
 
 varying vec2 vUv;
 
@@ -208,7 +208,7 @@ float tunnel(vec2 p, float t) {
   if (r < 0.002) return 0.0;
   float a = atan(p.y, p.x);
   float u = a / PI;
-  float v2 = 0.14 / max(r, 0.01) - t*0.6;
+  float v2 = 0.14 / max(r, 0.01) - t*0.6*uTunnelDir;
   float gu = abs(fract(u*9.0+0.5)-0.5);
   float gv = abs(fract(v2*9.0+0.5)-0.5);
   float grid = smoothstep(0.1, 0.022, min(gu, gv));
@@ -228,32 +228,41 @@ float sdBox(vec2 p, vec2 b) {
 // Nested hollow rectangle outlines scrolling inward — neon Tron corridor
 
 float wireGrid(vec2 p, float t) {
-  float v = 0.0;
-  float W = 0.009; // stroke half-width
+  float v  = 0.0;
+  float px = 1.0 / uResolution.y;  // 1 screen pixel in normalized units
+  float W  = 1.8 * px;             // ~1.8px core stroke
+  float GW = W * 7.0;              // glow radius
 
-  // Zoom tunnel: 8 nested rectangles scrolling toward center
   float scroll = fract(t * 0.14);
   for (int i = 0; i < 8; i++) {
     float scale = fract(float(i) / 8.0 + scroll);
     float ry  = 0.04 + scale * 0.45;
     float rx  = ry * 1.3;
     float d   = sdBox(p, vec2(rx, ry));
-    float br  = 0.35 + (1.0 - scale) * 0.65; // closer = brighter
+    float br  = 0.35 + (1.0 - scale) * 0.65;
+    float ad  = abs(d);
 
-    // Stroke edge
-    v += smoothstep(W, 0.0, abs(d)) * br;
+    // Core + glow
+    v += (smoothstep(W,  0.0, ad) + smoothstep(GW, W, ad) * 0.4) * br;
 
-    // Glowing corner nodes
-    float cd = 0.013;
-    v += (smoothstep(cd, 0.0, length(p - vec2( rx,  ry)))
-        + smoothstep(cd, 0.0, length(p - vec2(-rx,  ry)))
-        + smoothstep(cd, 0.0, length(p - vec2( rx, -ry)))
-        + smoothstep(cd, 0.0, length(p - vec2(-rx, -ry)))) * br * 0.8;
+    // Corner nodes
+    float cd = 3.5 * px;
+    float cg = cd * 5.0;
+    vec2 c0 = vec2( rx,  ry), c1 = vec2(-rx,  ry),
+         c2 = vec2( rx, -ry), c3 = vec2(-rx, -ry);
+    for (int j = 0; j < 4; j++) {
+      vec2 cp = j==0 ? c0 : j==1 ? c1 : j==2 ? c2 : c3;
+      float cl = length(p - cp);
+      v += (smoothstep(cd, 0.0, cl) + smoothstep(cg, cd, cl) * 0.4) * br * 0.9;
+    }
   }
 
-  // Center axis connector lines
-  v += smoothstep(0.005, 0.0, abs(p.x)) * smoothstep(0.52, 0.0, abs(p.y)) * 0.5;
-  v += smoothstep(0.005, 0.0, abs(p.y)) * smoothstep(0.68, 0.0, abs(p.x)) * 0.5;
+  // Center axis connectors
+  float aw = 1.5 * px;
+  v += (smoothstep(aw, 0.0, abs(p.x)) + smoothstep(aw*6.0, aw, abs(p.x)) * 0.35)
+     * smoothstep(0.52, 0.0, abs(p.y)) * 0.55;
+  v += (smoothstep(aw, 0.0, abs(p.y)) + smoothstep(aw*6.0, aw, abs(p.y)) * 0.35)
+     * smoothstep(0.68, 0.0, abs(p.x)) * 0.55;
 
   return clamp(v, 0.0, 1.0);
 }
@@ -266,27 +275,33 @@ float matrixRain(vec2 p, float t) {
   float r2 = dot(p, p);
   float R2 = R * R;
   float r  = sqrt(r2);
+  float px = 1.0 / uResolution.y;
 
   // Outer stroke ring
-  float outline = smoothstep(0.013, 0.0, abs(r - R));
-  if (r2 >= R2) return outline;
+  float oW      = 1.8 * px;
+  float oAD     = abs(r - R);
+  float outline = smoothstep(oW, 0.0, oAD) + smoothstep(oW*7.0, oW, oAD) * 0.4;
+  if (r2 >= R2) return clamp(outline, 0.0, 1.0);
 
   float z = sqrt(R2 - r2);
 
-  // ── Latitude lines (horizontal circles in orthographic projection) ────
+  // ── Latitude lines ────────────────────────────────────────────────────
   float sinPhi  = clamp(p.y / R, -1.0, 1.0);
   float lat     = asin(sinPhi);
   float latStep = PI / 8.0;
   float modLat  = mod(lat + PI * 0.5, latStep);
-  float latLine = smoothstep(0.030, 0.0, min(modLat, latStep - modLat));
+  float lW      = 2.2 * px;
+  float lD      = min(modLat, latStep - modLat);
+  float latLine = smoothstep(lW, 0.0, lD) + smoothstep(lW*6.0, lW, lD) * 0.35;
 
-  // ── Longitude lines (vertical ellipses) — sphere spins slowly ────────
-  float lon     = atan(p.x, z) + t * 0.16;
-  float lonStep = PI / 9.0;
-  float modLon  = mod(lon, lonStep);
-  // Squash line width near poles so they don't crowd
+  // ── Longitude lines ───────────────────────────────────────────────────
+  float lon       = atan(p.x, z) + t * 0.16;
+  float lonStep   = PI / 9.0;
+  float modLon    = mod(lon, lonStep);
   float cosFactor = max(0.12, sqrt(1.0 - sinPhi * sinPhi));
-  float lonLine   = smoothstep(0.036 / cosFactor, 0.0, min(modLon, lonStep - modLon));
+  float lonW      = 2.2 * px / cosFactor;
+  float lonD      = min(modLon, lonStep - modLon);
+  float lonLine   = smoothstep(lonW, 0.0, lonD) + smoothstep(lonW*6.0, lonW, lonD) * 0.35;
 
   return clamp(outline + latLine + lonLine, 0.0, 1.0);
 }
@@ -297,28 +312,35 @@ float matrixRain(vec2 p, float t) {
 float scanlines(vec2 p, float t) {
   p *= 4.0;
   vec2 ip = floor(p);
-  vec2 fp = fract(p) - 0.5; // center cell coords
+  vec2 fp = fract(p) - 0.5;
 
   float h     = hash(ip);
   float pulse = sin(t * 1.3 + h * TAU) * 0.5 + 0.5;
+  float px    = 4.0 / uResolution.y;  // 1px in scaled space
+  float W     = 2.0 * px;
+  float GW    = W * 7.0;
 
-  // Stroke-only box outline
-  float d      = sdBox(fp, vec2(0.34, 0.34));
-  float W      = 0.05;
-  float stroke = smoothstep(W, 0.0, abs(d)) * (0.3 + 0.7 * pulse);
+  float d    = sdBox(fp, vec2(0.34, 0.34));
+  float ad   = abs(d);
+  float bright_mod = 0.3 + 0.7 * pulse;
+  float stroke = (smoothstep(W, 0.0, ad) + smoothstep(GW, W, ad) * 0.4) * bright_mod;
 
-  // Corner glow nodes
-  float cd = 0.055;
-  float corners = (smoothstep(cd, 0.0, length(fp - vec2( 0.34,  0.34)))
-                 + smoothstep(cd, 0.0, length(fp - vec2(-0.34,  0.34)))
-                 + smoothstep(cd, 0.0, length(fp - vec2( 0.34, -0.34)))
-                 + smoothstep(cd, 0.0, length(fp - vec2(-0.34, -0.34))))
-                * (0.4 + 0.6 * pulse) * 0.55;
+  // Corner nodes
+  float cd = 3.5 * px;
+  float cg = cd * 5.0;
+  vec2  p0 = vec2( 0.34,  0.34), p1 = vec2(-0.34,  0.34),
+        p2 = vec2( 0.34, -0.34), p3 = vec2(-0.34, -0.34);
+  float corners = 0.0;
+  for (int j = 0; j < 4; j++) {
+    vec2 cp = j==0 ? p0 : j==1 ? p1 : j==2 ? p2 : p3;
+    float cl = length(fp - cp);
+    corners += smoothstep(cd, 0.0, cl) + smoothstep(cg, cd, cl) * 0.4;
+  }
+  corners *= (0.4 + 0.6 * pulse) * 0.6;
 
-  // Rare bright filled cell (data highlight)
-  float bright = step(0.85, h) * smoothstep(0.38, 0.0, abs(d)) * 0.35;
+  float highlight = step(0.85, h) * smoothstep(0.38, 0.0, ad) * 0.3;
 
-  return clamp(stroke + corners + bright, 0.0, 1.0);
+  return clamp(stroke + corners + highlight, 0.0, 1.0);
 }
 
 // ── Pattern 11: Hex Mesh ──────────────────────────────────────────────────
@@ -332,29 +354,35 @@ float hexMesh(vec2 p, float t) {
   vec2 gv = dot(a, a) < dot(b, b) ? a : b;
   vec2 ip = dot(a, a) < dot(b, b) ? floor(p / hs) : floor((p - hs * 0.5) / hs);
 
-  float d   = hexDist(gv);
-  float R   = 0.44;
-  float W   = 0.025;
+  float d  = hexDist(gv);
+  float R  = 0.44;
+  float px = 5.0 / uResolution.y;  // 1px in scaled space
+  float W  = 1.6 * px;
+  float GW = W * 7.0;
 
-  // Stroke-only hex edge
-  float edge = smoothstep(W, 0.0, abs(d - R));
+  // Core + glow hex edge
+  float eAD = abs(d - R);
+  float edge = smoothstep(W, 0.0, eAD) + smoothstep(GW, W, eAD) * 0.4;
 
-  // Vertex glow nodes at each of the 6 corners
+  // Vertex nodes
   float vg = 0.0;
+  float vW = 3.0 * px;
+  float vG = vW * 5.0;
   for (int k = 0; k < 6; k++) {
-    float ang  = float(k) * PI / 3.0;
-    vg += smoothstep(0.065, 0.0, length(gv - vec2(cos(ang), sin(ang)) * R));
+    float ang = float(k) * PI / 3.0;
+    float vd  = length(gv - vec2(cos(ang), sin(ang)) * R);
+    vg += smoothstep(vW, 0.0, vd) + smoothstep(vG, vW, vd) * 0.4;
   }
-  vg *= 0.45;
+  vg *= 0.5;
 
-  // Per-cell pulse
   float ch    = hash(ip);
   float pulse = sin(t * 1.0 + ch * TAU) * 0.5 + 0.5;
 
   // Data packet orbiting the hex edge
   float edgeAng = atan(gv.y, gv.x);
-  float packet  = smoothstep(W, 0.0, abs(d - R))
-                * smoothstep(0.08, 0.0, abs(mod(edgeAng / TAU - t * 0.28 * (0.5 + ch), 1.0) - 0.5)) * 1.4;
+  float pW      = 2.5 * px;
+  float packet  = (smoothstep(W, 0.0, eAD) + smoothstep(GW, W, eAD) * 0.3)
+                * smoothstep(pW, 0.0, abs(mod(edgeAng / TAU - t * 0.28 * (0.5 + ch), 1.0) - 0.5)) * 1.4;
 
   return clamp(edge + vg * (0.4 + 0.6 * pulse) + packet, 0.0, 1.0);
 }
@@ -374,15 +402,6 @@ vec3 paletteColor(float t) {
 
 void main() {
   vec2 uv = vUv;
-
-  // Glitch: horizontal slice displacement
-  if (uGlitch > 0.01) {
-    float sliceIdx = floor(uv.y * 26.0);
-    float rnd = hash(vec2(sliceIdx, floor(uTime * 28.0)));
-    float offset = (rnd - 0.5) * uGlitch * 0.08;
-    if (rnd > 0.72) offset *= 3.2;
-    uv.x = fract(uv.x + offset);
-  }
 
   vec2 p = (uv - 0.5) * vec2(uAspect, 1.0);
 
@@ -425,12 +444,6 @@ void main() {
 
   vec3 col = paletteColor(v);
 
-  if (uGlitch > 0.01) {
-    float ca = uGlitch * 0.055;
-    col.r = paletteColor(clamp(v + ca, 0.0, 1.0)).r;
-    col.b = paletteColor(clamp(v - ca, 0.0, 1.0)).b;
-  }
-
   if (uHueShift > 0.001) {
     float angle = segIdx / uSymmetry * TAU * uHueShift;
     col = hueRotate(col, angle);
@@ -443,7 +456,7 @@ void main() {
   col = (col - 0.5) * uContrast + 0.5;
   col *= uBrightness;
 
-  col = mix(uBgColor, col, smoothstep(0.0, 0.1, v));
+  col *= smoothstep(0.0, 0.1, v);
 
   // Soft corner-only vignette
   col *= 1.0 - smoothstep(0.74, 1.08, r) * 0.28;

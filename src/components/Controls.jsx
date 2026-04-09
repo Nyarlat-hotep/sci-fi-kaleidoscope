@@ -1,8 +1,32 @@
-import { useState } from 'react'
-import { Zap } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { ChevronRight, X } from 'lucide-react'
 import { PALETTES } from '../data/palettes'
-import { BG_PRESETS } from '../data/bgColors'
 import './Controls.css'
+
+// ── Color helpers ──────────────────────────────────────────────────────────
+
+function hueToColor(h, l = 0.58) {
+  const c = (1 - Math.abs(2 * l - 1))
+  const x = c * (1 - Math.abs((h / 60) % 2 - 1))
+  const m = l - c / 2
+  const s = Math.floor(h / 60) % 6
+  const [r, g, b] = s === 0 ? [c,x,0] : s === 1 ? [x,c,0] : s === 2 ? [0,c,x]
+                  : s === 3 ? [0,x,c] : s === 4 ? [x,0,c] : [c,0,x]
+  return '#' + [r+m, g+m, b+m].map(v => Math.round(Math.min(1, Math.max(0, v)) * 255).toString(16).padStart(2, '0')).join('')
+}
+
+function colorToHsl(hex) {
+  if (!hex) return { h: 180, l: 0.58 }
+  const r = parseInt(hex.slice(1,3),16)/255
+  const g = parseInt(hex.slice(3,5),16)/255
+  const b = parseInt(hex.slice(5,7),16)/255
+  const max = Math.max(r,g,b), min = Math.min(r,g,b)
+  const l = (max + min) / 2
+  const d = max - min
+  if (d < 0.001) return { h: 180, l: Math.round(l * 100) / 100 }
+  let h = max === r ? ((g-b)/d + 6) % 6 : max === g ? (b-r)/d + 2 : (r-g)/d + 4
+  return { h: Math.round(h * 60), l: Math.round(l * 100) / 100 }
+}
 
 const SHAPES = [
   { id: 'CIR', label: 'Circuits'  },
@@ -51,6 +75,7 @@ function SliderRow({ label, value, onChange, min, max, step, displayValue }) {
 
 export default function Controls({
   palette, setPalette,
+  customColor, setCustomColor,
   shapeType, setShapeType,
   symmetry, setSymmetry,
   speed, setSpeed,
@@ -58,37 +83,40 @@ export default function Controls({
   hueCycleSpeed, setHueCycleSpeed,
   brightness, setBrightness,
   contrast, setContrast,
-  bgColorIdx, setBgColorIdx,
   rotSpeed, setRotSpeed,
   zoomPulse, setZoomPulse,
   warp, setWarp,
-  onGlitch,
+  tunnelDir, setTunnelDir,
 }) {
   const [open, setOpen] = useState(false)
-  const [glitching, setGlitching] = useState(false)
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const { h: currentHue, l: currentLum } = colorToHsl(customColor)
 
-  function handleGlitch() {
-    setGlitching(true)
-    onGlitch()
-    setTimeout(() => setGlitching(false), 420)
-  }
+  useEffect(() => {
+    function onKey(e) {
+      if (e.shiftKey && e.key === 'M') setOpen(o => !o)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   const isWireframe = shapeType >= 8
 
   return (
     <>
+      {/* ── Edge tab — fixed independently so hit area never moves during animation ── */}
+      <button
+        className={`sidebar-tab${open ? ' sidebar-tab--open' : ''}`}
+        onClick={() => setOpen(o => !o)}
+        aria-label={open ? 'Close controls' : 'Open controls'}
+      >
+        <span className="sidebar-tab-label">CTRL</span>
+        <ChevronRight size={13} className={`sidebar-tab-arrow${open ? ' sidebar-tab-arrow--open' : ''}`} />
+        <span className="sidebar-tab-tooltip">Shift + M</span>
+      </button>
+
       {/* ── Sidebar panel ─────────────────────────────────────────── */}
       <div className={`sidebar${open ? ' sidebar--open' : ''}`}>
-
-        {/* Edge tab */}
-        <button
-          className="sidebar-tab"
-          onClick={() => setOpen(o => !o)}
-          aria-label={open ? 'Close controls' : 'Open controls'}
-        >
-          <span className="sidebar-tab-label">CTRL</span>
-          <span className={`sidebar-tab-arrow${open ? ' sidebar-tab-arrow--open' : ''}`}>&#10148;</span>
-        </button>
 
         {/* Scrollable content */}
         <div className="sidebar-body">
@@ -96,7 +124,7 @@ export default function Controls({
           {/* Header */}
           <div className="sb-header">
             <span className="sb-title">CONTROLS</span>
-            <button className="sb-close" onClick={() => setOpen(false)}>&#x2715;</button>
+            <button className="sb-close" onClick={() => setOpen(false)}><X size={14} /></button>
           </div>
 
           {/* ── PATTERN ──────────────────────────────────────────── */}
@@ -106,7 +134,10 @@ export default function Controls({
                 <button
                   key={i}
                   className={`shape-btn${shapeType === i ? ' active' : ''}${i >= 8 ? ' wire' : ''}`}
-                  onClick={() => setShapeType(i)}
+                  onClick={() => {
+                    if (i === 7 && shapeType === 7) setTunnelDir(d => d * -1)
+                    else setShapeType(i)
+                  }}
                   title={s.label}
                 >
                   {s.id}
@@ -139,25 +170,48 @@ export default function Controls({
               {PALETTES.map((p, i) => (
                 <button
                   key={i}
-                  className={`swatch${palette === i ? ' active' : ''}`}
-                  onClick={() => setPalette(i)}
+                  className={`swatch${palette === i && !customColor ? ' active' : ''}`}
+                  onClick={() => { setCustomColor(null); setPalette(i); setPickerOpen(false) }}
                   title={p.name}
-                  style={{ background: `rgb(${p.colors[0].map(v => Math.round(v * 255)).join(',')})` }}
+                  style={{ background: `rgb(${p.colors[2].map(v => Math.round(v * 255)).join(',')})` }}
                 />
               ))}
+              <button
+                className={`swatch swatch--custom${customColor ? ' active' : ''}`}
+                style={{ background: customColor ?? 'conic-gradient(#ff2d6b 0deg 90deg, #00e5ff 90deg 180deg, #ffe600 180deg 270deg, #00ff88 270deg 360deg)' }}
+                title="Custom color"
+                onClick={() => {
+                  if (!customColor) setCustomColor(hueToColor(180))
+                  setPickerOpen(o => !o)
+                }}
+              />
             </div>
-            <div className="sb-row-label">Background</div>
-            <div className="palette-row">
-              {BG_PRESETS.map((b, i) => (
-                <button
-                  key={i}
-                  className={`swatch swatch--sq${bgColorIdx === i ? ' active' : ''}`}
-                  onClick={() => setBgColorIdx(i)}
-                  title={b.label}
-                  style={{ background: b.display }}
-                />
-              ))}
-            </div>
+
+            {pickerOpen && (
+              <div className="custom-picker">
+                <div className="custom-picker-preview" style={{ background: customColor }} />
+                <div className="custom-picker-row">
+                  <span className="cp-label">HUE</span>
+                  <input
+                    type="range" className="cp-slider hue-slider"
+                    min={0} max={359} step={1}
+                    value={currentHue}
+                    onChange={e => setCustomColor(hueToColor(+e.target.value, currentLum))}
+                  />
+                </div>
+                <div className="custom-picker-row">
+                  <span className="cp-label">LUM</span>
+                  <input
+                    type="range" className="cp-slider"
+                    min={0.28} max={0.78} step={0.01}
+                    value={currentLum}
+                    onChange={e => setCustomColor(hueToColor(currentHue, +e.target.value))}
+                    style={{ background: `linear-gradient(to right, hsl(${currentHue},90%,18%), hsl(${currentHue},100%,55%), hsl(${currentHue},60%,82%))` }}
+                  />
+                </div>
+              </div>
+            )}
+
           </Section>
 
           {/* ── COLOR ────────────────────────────────────────────── */}
@@ -176,19 +230,9 @@ export default function Controls({
             <SliderRow label="Warp"          value={warp}          onChange={setWarp}          min={0}    max={1}  step={0.01} />
           </Section>
 
-          {/* ── EFFECTS ──────────────────────────────────────────── */}
-          <Section title="Effects">
-            <button
-              className={`glitch-btn${glitching ? ' glitching' : ''}`}
-              onClick={handleGlitch}
-            >
-              <Zap size={13} />
-              GLITCH BURST
-            </button>
-          </Section>
-
         </div>
       </div>
     </>
   )
 }
+
