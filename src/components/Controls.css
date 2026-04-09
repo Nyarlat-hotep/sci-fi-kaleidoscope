@@ -481,3 +481,107 @@
   border: none;
   cursor: pointer;
 }
+
+/* ── Meditate toggles ─────────────────────────────────────────────── */
+
+.breath-mode-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.breath-mode-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  padding: 3px 0;
+}
+
+.breath-mode-label {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  color: var(--sb-text);
+  transition: color 0.13s;
+}
+
+.breath-mode-row:hover .breath-mode-label {
+  color: var(--sb-text-label);
+}
+
+.breath-mode-label--on {
+  color: var(--sb-accent);
+}
+
+.breath-toggle {
+  width: 32px;
+  height: 16px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--sb-accent) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sb-accent) 28%, transparent);
+  position: relative;
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+  flex-shrink: 0;
+}
+
+.breath-toggle--on {
+  background: color-mix(in srgb, var(--sb-accent) 18%, transparent);
+  border-color: var(--sb-accent);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--sb-accent) 30%, transparent);
+}
+
+.breath-toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--sb-accent) 35%, transparent);
+  transition: transform 0.2s, background 0.2s, box-shadow 0.2s;
+}
+
+.breath-toggle--on .breath-toggle-thumb {
+  transform: translateX(16px);
+  background: var(--sb-accent);
+  box-shadow: 0 0 5px color-mix(in srgb, var(--sb-accent) 60%, transparent);
+}
+
+/* ── Breath cue overlay ───────────────────────────────────────────── */
+
+.breath-cue {
+  position: fixed;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.breath-cue-label {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.45em;
+  color: var(--sb-accent);
+  text-shadow: 0 0 12px color-mix(in srgb, var(--sb-accent) 60%, transparent);
+}
+
+.breath-cue-bar-track {
+  width: 120px;
+  height: 2px;
+  background: color-mix(in srgb, var(--sb-accent) 15%, transparent);
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.breath-cue-bar-fill {
+  height: 100%;
+  background: var(--sb-accent);
+  border-radius: 1px;
+  transition: width 0.1s linear;
+}

@@ -3,6 +3,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { vert } from '../shaders/vert'
 import { frag } from '../shaders/frag'
+import { BREATH_MODES } from '../data/breathModes'
 
 function KaleidoscopeMesh(props) {
   const {
@@ -11,12 +12,16 @@ function KaleidoscopeMesh(props) {
     brightness, contrast,
     zoomPulse, rotSpeed, warp,
     tunnelDir,
+    breathMode, setBreathPhaseRef,
   } = props
 
   const matRef      = useRef()
   const propsRef    = useRef(props)
   propsRef.current  = props
   const symRef      = useRef(symmetry)
+
+  const breathRef        = useRef({ phaseIndex: 0, elapsed: 0, lastLabel: null, lastProgress: -1, lastActivePhaseName: 'EXHALE' })
+  const breathCurrentRef = useRef({ brightness: 1.0, zoomPulse: 0, warp: 0, breath: 0 })
 
   const { size } = useThree()
 
@@ -37,9 +42,9 @@ function KaleidoscopeMesh(props) {
     uRotOffset:  { value: 0 },
     uWarp:       { value: warp },
     uTunnelDir:  { value: 1 },
+    uBreath:     { value: 0 },
   }), []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Palette colors (object array — update via effect)
   useEffect(() => {
     if (!matRef.current) return
     matRef.current.uniforms.uPalette.value = paletteColors.map(c => new THREE.Vector3(...c))
@@ -50,6 +55,13 @@ function KaleidoscopeMesh(props) {
     matRef.current.uniforms.uAspect.value = size.width / size.height
     matRef.current.uniforms.uResolution.value.set(size.width, size.height)
   }, [size])
+
+  useEffect(() => {
+    breathRef.current = { phaseIndex: 0, elapsed: 0, lastLabel: null, lastProgress: -1, lastActivePhaseName: 'EXHALE' }
+    if (!breathMode && setBreathPhaseRef) {
+      setBreathPhaseRef.current({ label: null, progress: 0 })
+    }
+  }, [breathMode]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useFrame((_, delta) => {
     if (!matRef.current) return
@@ -62,14 +74,70 @@ function KaleidoscopeMesh(props) {
     u.uSymmetry.value   = symRef.current
     u.uSpeed.value      = p.speed
     u.uHueShift.value   = p.hueShift
-    u.uBrightness.value = p.brightness
     u.uContrast.value   = p.contrast
-    u.uZoomPulse.value  = p.zoomPulse
-    u.uWarp.value       = p.warp
 
     u.uTunnelDir.value  = p.tunnelDir
     if (p.rotSpeed      > 0.001) u.uRotOffset.value += p.rotSpeed      * 0.45 * delta
     if (p.hueCycleSpeed > 0.001) u.uHueAngle.value  += p.hueCycleSpeed * 0.8  * delta
+
+    // ── Breathing logic ────────────────────────────────────────────
+    let targetBrightness = p.brightness
+    let targetZoomPulse  = p.zoomPulse
+    let targetWarp       = p.warp
+    let targetBreath     = 0
+
+    if (p.breathMode) {
+      const mode  = BREATH_MODES.find(m => m.id === p.breathMode)
+      const br    = breathRef.current
+      const phase = mode.phases[br.phaseIndex]
+      br.elapsed += delta
+      const progress = Math.min(br.elapsed / phase.dur, 1)
+
+      if (phase.name !== 'HOLD') br.lastActivePhaseName = phase.name
+      const holdAtPeak = br.lastActivePhaseName === 'INHALE'
+
+      if (phase.name === 'INHALE') {
+        targetBrightness = 1.0 + 0.5 * progress
+        targetBreath     = progress
+        targetZoomPulse  = 0
+        targetWarp       = p.breathMode === 'focus' ? 0.3 * progress : 0
+      } else if (phase.name === 'EXHALE') {
+        targetBrightness = 1.5 - 0.5 * progress
+        targetBreath     = 1.0 - progress
+        targetZoomPulse  = 0
+        targetWarp       = p.breathMode === 'focus' ? 0.3 * (1 - progress) : 0
+      } else { // HOLD
+        targetBrightness = holdAtPeak ? 1.5 : 1.0
+        targetBreath     = holdAtPeak ? 1.0 : 0.0
+        targetZoomPulse  = 0
+        targetWarp       = 0
+      }
+
+      if (br.elapsed >= phase.dur) {
+        br.elapsed    -= phase.dur
+        br.phaseIndex  = (br.phaseIndex + 1) % mode.phases.length
+      }
+
+      const roundedProgress = Math.round(progress * 10) / 10
+      if (phase.name !== br.lastLabel || roundedProgress !== br.lastProgress) {
+        if (p.setBreathPhaseRef) p.setBreathPhaseRef.current({ label: phase.name, progress })
+        br.lastLabel    = phase.name
+        br.lastProgress = roundedProgress
+      }
+    }
+
+    // Lerp current values toward targets (~300ms transition)
+    const s  = Math.min(1, delta * 3)
+    const sb = Math.min(1, delta * 8)  // tighter tracking for breath sync
+    breathCurrentRef.current.brightness += (targetBrightness - breathCurrentRef.current.brightness) * s
+    breathCurrentRef.current.zoomPulse  += (targetZoomPulse  - breathCurrentRef.current.zoomPulse)  * s
+    breathCurrentRef.current.warp       += (targetWarp       - breathCurrentRef.current.warp)        * s
+    breathCurrentRef.current.breath     += (targetBreath     - breathCurrentRef.current.breath)      * sb
+
+    u.uBrightness.value = breathCurrentRef.current.brightness
+    u.uZoomPulse.value  = breathCurrentRef.current.zoomPulse
+    u.uWarp.value       = breathCurrentRef.current.warp
+    u.uBreath.value     = breathCurrentRef.current.breath
   })
 
   return (

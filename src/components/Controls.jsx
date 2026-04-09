@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { ChevronRight, X } from 'lucide-react'
 import { PALETTES } from '../data/palettes'
+import { BREATH_MODES } from '../data/breathModes'
 import './Controls.css'
 
 // ── Color helpers ──────────────────────────────────────────────────────────
@@ -87,6 +88,7 @@ export default function Controls({
   zoomPulse, setZoomPulse,
   warp, setWarp,
   tunnelDir, setTunnelDir,
+  breathMode, setBreathMode,
 }) {
   const [open, setOpen] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -228,6 +230,27 @@ export default function Controls({
             <SliderRow label="Spin"          value={rotSpeed}      onChange={setRotSpeed}      min={0}    max={1}  step={0.01} />
             <SliderRow label="Zoom Pulse"    value={zoomPulse}     onChange={setZoomPulse}     min={0}    max={1}  step={0.01} />
             <SliderRow label="Warp"          value={warp}          onChange={setWarp}          min={0}    max={1}  step={0.01} />
+          </Section>
+
+          {/* ── MEDITATE ─────────────────────────────────────────── */}
+          <Section title="Meditate">
+            <div className="breath-mode-list">
+              {BREATH_MODES.map(m => {
+                const active = breathMode === m.id
+                return (
+                  <div
+                    key={m.id}
+                    className="breath-mode-row"
+                    onClick={() => setBreathMode(cur => cur === m.id ? null : m.id)}
+                  >
+                    <span className={`breath-mode-label${active ? ' breath-mode-label--on' : ''}`}>{m.label}</span>
+                    <div className={`breath-toggle${active ? ' breath-toggle--on' : ''}`}>
+                      <div className="breath-toggle-thumb" />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           </Section>
 
         </div>

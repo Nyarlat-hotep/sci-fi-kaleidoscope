@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import KaleidoscopeScene from './components/KaleidoscopeScene'
 import Controls from './components/Controls'
+import BreathCue from './components/BreathCue'
 import { PALETTES } from './data/palettes'
 
 function hexToRgb01(hex) {
@@ -23,7 +24,7 @@ function colorToPalette(hex) {
 
 export default function App() {
   const [palette,       setPalette]       = useState(0)
-  const [customColor,   setCustomColor]   = useState(null)  // '#rrggbb' or null
+  const [customColor,   setCustomColor]   = useState(null)
   const [shapeType,     setShapeType]     = useState(2)
   const [symmetry,      setSymmetry]      = useState(8)
   const [speed,         setSpeed]         = useState(0.45)
@@ -36,6 +37,12 @@ export default function App() {
   const [zoomPulse,     setZoomPulse]     = useState(0)
   const [warp,          setWarp]          = useState(0)
   const [tunnelDir,     setTunnelDir]     = useState(1)
+
+  const [breathMode,    setBreathMode]    = useState(null)
+  const [breathPhase,   setBreathPhase]   = useState({ label: null, progress: 0 })
+  const setBreathPhaseRef = useRef(setBreathPhase)
+  setBreathPhaseRef.current = setBreathPhase
+
   const paletteColors = useMemo(
     () => customColor ? colorToPalette(customColor) : PALETTES[palette].colors,
     [palette, customColor]
@@ -56,6 +63,8 @@ export default function App() {
         rotSpeed={rotSpeed}
         warp={warp}
         tunnelDir={tunnelDir}
+        breathMode={breathMode}
+        setBreathPhaseRef={setBreathPhaseRef}
       />
       <Controls
         palette={palette}             setPalette={setPalette}
@@ -71,7 +80,9 @@ export default function App() {
         zoomPulse={zoomPulse}         setZoomPulse={setZoomPulse}
         warp={warp}                   setWarp={setWarp}
         tunnelDir={tunnelDir}         setTunnelDir={setTunnelDir}
+        breathMode={breathMode}       setBreathMode={setBreathMode}
       />
+      <BreathCue phase={breathPhase} />
     </>
   )
 }
