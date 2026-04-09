@@ -4085,11 +4085,11 @@ uniform float uHueShift;
 uniform float uHueAngle;
 uniform float uBrightness;
 uniform float uContrast;
-uniform vec3  uBgColor;
 uniform float uZoomPulse;
 uniform float uRotOffset;
 uniform float uWarp;
-uniform float uGlitch;
+uniform vec2  uResolution;
+uniform float uTunnelDir;
 
 varying vec2 vUv;
 
@@ -4281,7 +4281,7 @@ float tunnel(vec2 p, float t) {
   if (r < 0.002) return 0.0;
   float a = atan(p.y, p.x);
   float u = a / PI;
-  float v2 = 0.14 / max(r, 0.01) - t*0.6;
+  float v2 = 0.14 / max(r, 0.01) - t*0.6*uTunnelDir;
   float gu = abs(fract(u*9.0+0.5)-0.5);
   float gv = abs(fract(v2*9.0+0.5)-0.5);
   float grid = smoothstep(0.1, 0.022, min(gu, gv));
@@ -4301,32 +4301,41 @@ float sdBox(vec2 p, vec2 b) {
 // Nested hollow rectangle outlines scrolling inward — neon Tron corridor
 
 float wireGrid(vec2 p, float t) {
-  float v = 0.0;
-  float W = 0.009; // stroke half-width
+  float v  = 0.0;
+  float px = 1.0 / uResolution.y;  // 1 screen pixel in normalized units
+  float W  = 1.8 * px;             // ~1.8px core stroke
+  float GW = W * 7.0;              // glow radius
 
-  // Zoom tunnel: 8 nested rectangles scrolling toward center
   float scroll = fract(t * 0.14);
   for (int i = 0; i < 8; i++) {
     float scale = fract(float(i) / 8.0 + scroll);
     float ry  = 0.04 + scale * 0.45;
     float rx  = ry * 1.3;
     float d   = sdBox(p, vec2(rx, ry));
-    float br  = 0.35 + (1.0 - scale) * 0.65; // closer = brighter
+    float br  = 0.35 + (1.0 - scale) * 0.65;
+    float ad  = abs(d);
 
-    // Stroke edge
-    v += smoothstep(W, 0.0, abs(d)) * br;
+    // Core + glow
+    v += (smoothstep(W,  0.0, ad) + smoothstep(GW, W, ad) * 0.4) * br;
 
-    // Glowing corner nodes
-    float cd = 0.013;
-    v += (smoothstep(cd, 0.0, length(p - vec2( rx,  ry)))
-        + smoothstep(cd, 0.0, length(p - vec2(-rx,  ry)))
-        + smoothstep(cd, 0.0, length(p - vec2( rx, -ry)))
-        + smoothstep(cd, 0.0, length(p - vec2(-rx, -ry)))) * br * 0.8;
+    // Corner nodes
+    float cd = 3.5 * px;
+    float cg = cd * 5.0;
+    vec2 c0 = vec2( rx,  ry), c1 = vec2(-rx,  ry),
+         c2 = vec2( rx, -ry), c3 = vec2(-rx, -ry);
+    for (int j = 0; j < 4; j++) {
+      vec2 cp = j==0 ? c0 : j==1 ? c1 : j==2 ? c2 : c3;
+      float cl = length(p - cp);
+      v += (smoothstep(cd, 0.0, cl) + smoothstep(cg, cd, cl) * 0.4) * br * 0.9;
+    }
   }
 
-  // Center axis connector lines
-  v += smoothstep(0.005, 0.0, abs(p.x)) * smoothstep(0.52, 0.0, abs(p.y)) * 0.5;
-  v += smoothstep(0.005, 0.0, abs(p.y)) * smoothstep(0.68, 0.0, abs(p.x)) * 0.5;
+  // Center axis connectors
+  float aw = 1.5 * px;
+  v += (smoothstep(aw, 0.0, abs(p.x)) + smoothstep(aw*6.0, aw, abs(p.x)) * 0.35)
+     * smoothstep(0.52, 0.0, abs(p.y)) * 0.55;
+  v += (smoothstep(aw, 0.0, abs(p.y)) + smoothstep(aw*6.0, aw, abs(p.y)) * 0.35)
+     * smoothstep(0.68, 0.0, abs(p.x)) * 0.55;
 
   return clamp(v, 0.0, 1.0);
 }
@@ -4339,27 +4348,33 @@ float matrixRain(vec2 p, float t) {
   float r2 = dot(p, p);
   float R2 = R * R;
   float r  = sqrt(r2);
+  float px = 1.0 / uResolution.y;
 
   // Outer stroke ring
-  float outline = smoothstep(0.013, 0.0, abs(r - R));
-  if (r2 >= R2) return outline;
+  float oW      = 1.8 * px;
+  float oAD     = abs(r - R);
+  float outline = smoothstep(oW, 0.0, oAD) + smoothstep(oW*7.0, oW, oAD) * 0.4;
+  if (r2 >= R2) return clamp(outline, 0.0, 1.0);
 
   float z = sqrt(R2 - r2);
 
-  // ── Latitude lines (horizontal circles in orthographic projection) ────
+  // ── Latitude lines ────────────────────────────────────────────────────
   float sinPhi  = clamp(p.y / R, -1.0, 1.0);
   float lat     = asin(sinPhi);
   float latStep = PI / 8.0;
   float modLat  = mod(lat + PI * 0.5, latStep);
-  float latLine = smoothstep(0.030, 0.0, min(modLat, latStep - modLat));
+  float lW      = 2.2 * px;
+  float lD      = min(modLat, latStep - modLat);
+  float latLine = smoothstep(lW, 0.0, lD) + smoothstep(lW*6.0, lW, lD) * 0.35;
 
-  // ── Longitude lines (vertical ellipses) — sphere spins slowly ────────
-  float lon     = atan(p.x, z) + t * 0.16;
-  float lonStep = PI / 9.0;
-  float modLon  = mod(lon, lonStep);
-  // Squash line width near poles so they don't crowd
+  // ── Longitude lines ───────────────────────────────────────────────────
+  float lon       = atan(p.x, z) + t * 0.16;
+  float lonStep   = PI / 9.0;
+  float modLon    = mod(lon, lonStep);
   float cosFactor = max(0.12, sqrt(1.0 - sinPhi * sinPhi));
-  float lonLine   = smoothstep(0.036 / cosFactor, 0.0, min(modLon, lonStep - modLon));
+  float lonW      = 2.2 * px / cosFactor;
+  float lonD      = min(modLon, lonStep - modLon);
+  float lonLine   = smoothstep(lonW, 0.0, lonD) + smoothstep(lonW*6.0, lonW, lonD) * 0.35;
 
   return clamp(outline + latLine + lonLine, 0.0, 1.0);
 }
@@ -4370,28 +4385,35 @@ float matrixRain(vec2 p, float t) {
 float scanlines(vec2 p, float t) {
   p *= 4.0;
   vec2 ip = floor(p);
-  vec2 fp = fract(p) - 0.5; // center cell coords
+  vec2 fp = fract(p) - 0.5;
 
   float h     = hash(ip);
   float pulse = sin(t * 1.3 + h * TAU) * 0.5 + 0.5;
+  float px    = 4.0 / uResolution.y;  // 1px in scaled space
+  float W     = 2.0 * px;
+  float GW    = W * 7.0;
 
-  // Stroke-only box outline
-  float d      = sdBox(fp, vec2(0.34, 0.34));
-  float W      = 0.05;
-  float stroke = smoothstep(W, 0.0, abs(d)) * (0.3 + 0.7 * pulse);
+  float d    = sdBox(fp, vec2(0.34, 0.34));
+  float ad   = abs(d);
+  float bright_mod = 0.3 + 0.7 * pulse;
+  float stroke = (smoothstep(W, 0.0, ad) + smoothstep(GW, W, ad) * 0.4) * bright_mod;
 
-  // Corner glow nodes
-  float cd = 0.055;
-  float corners = (smoothstep(cd, 0.0, length(fp - vec2( 0.34,  0.34)))
-                 + smoothstep(cd, 0.0, length(fp - vec2(-0.34,  0.34)))
-                 + smoothstep(cd, 0.0, length(fp - vec2( 0.34, -0.34)))
-                 + smoothstep(cd, 0.0, length(fp - vec2(-0.34, -0.34))))
-                * (0.4 + 0.6 * pulse) * 0.55;
+  // Corner nodes
+  float cd = 3.5 * px;
+  float cg = cd * 5.0;
+  vec2  p0 = vec2( 0.34,  0.34), p1 = vec2(-0.34,  0.34),
+        p2 = vec2( 0.34, -0.34), p3 = vec2(-0.34, -0.34);
+  float corners = 0.0;
+  for (int j = 0; j < 4; j++) {
+    vec2 cp = j==0 ? p0 : j==1 ? p1 : j==2 ? p2 : p3;
+    float cl = length(fp - cp);
+    corners += smoothstep(cd, 0.0, cl) + smoothstep(cg, cd, cl) * 0.4;
+  }
+  corners *= (0.4 + 0.6 * pulse) * 0.6;
 
-  // Rare bright filled cell (data highlight)
-  float bright = step(0.85, h) * smoothstep(0.38, 0.0, abs(d)) * 0.35;
+  float highlight = step(0.85, h) * smoothstep(0.38, 0.0, ad) * 0.3;
 
-  return clamp(stroke + corners + bright, 0.0, 1.0);
+  return clamp(stroke + corners + highlight, 0.0, 1.0);
 }
 
 // ── Pattern 11: Hex Mesh ──────────────────────────────────────────────────
@@ -4405,29 +4427,35 @@ float hexMesh(vec2 p, float t) {
   vec2 gv = dot(a, a) < dot(b, b) ? a : b;
   vec2 ip = dot(a, a) < dot(b, b) ? floor(p / hs) : floor((p - hs * 0.5) / hs);
 
-  float d   = hexDist(gv);
-  float R   = 0.44;
-  float W   = 0.025;
+  float d  = hexDist(gv);
+  float R  = 0.44;
+  float px = 5.0 / uResolution.y;  // 1px in scaled space
+  float W  = 1.6 * px;
+  float GW = W * 7.0;
 
-  // Stroke-only hex edge
-  float edge = smoothstep(W, 0.0, abs(d - R));
+  // Core + glow hex edge
+  float eAD = abs(d - R);
+  float edge = smoothstep(W, 0.0, eAD) + smoothstep(GW, W, eAD) * 0.4;
 
-  // Vertex glow nodes at each of the 6 corners
+  // Vertex nodes
   float vg = 0.0;
+  float vW = 3.0 * px;
+  float vG = vW * 5.0;
   for (int k = 0; k < 6; k++) {
-    float ang  = float(k) * PI / 3.0;
-    vg += smoothstep(0.065, 0.0, length(gv - vec2(cos(ang), sin(ang)) * R));
+    float ang = float(k) * PI / 3.0;
+    float vd  = length(gv - vec2(cos(ang), sin(ang)) * R);
+    vg += smoothstep(vW, 0.0, vd) + smoothstep(vG, vW, vd) * 0.4;
   }
-  vg *= 0.45;
+  vg *= 0.5;
 
-  // Per-cell pulse
   float ch    = hash(ip);
   float pulse = sin(t * 1.0 + ch * TAU) * 0.5 + 0.5;
 
   // Data packet orbiting the hex edge
   float edgeAng = atan(gv.y, gv.x);
-  float packet  = smoothstep(W, 0.0, abs(d - R))
-                * smoothstep(0.08, 0.0, abs(mod(edgeAng / TAU - t * 0.28 * (0.5 + ch), 1.0) - 0.5)) * 1.4;
+  float pW      = 2.5 * px;
+  float packet  = (smoothstep(W, 0.0, eAD) + smoothstep(GW, W, eAD) * 0.3)
+                * smoothstep(pW, 0.0, abs(mod(edgeAng / TAU - t * 0.28 * (0.5 + ch), 1.0) - 0.5)) * 1.4;
 
   return clamp(edge + vg * (0.4 + 0.6 * pulse) + packet, 0.0, 1.0);
 }
@@ -4447,15 +4475,6 @@ vec3 paletteColor(float t) {
 
 void main() {
   vec2 uv = vUv;
-
-  // Glitch: horizontal slice displacement
-  if (uGlitch > 0.01) {
-    float sliceIdx = floor(uv.y * 26.0);
-    float rnd = hash(vec2(sliceIdx, floor(uTime * 28.0)));
-    float offset = (rnd - 0.5) * uGlitch * 0.08;
-    if (rnd > 0.72) offset *= 3.2;
-    uv.x = fract(uv.x + offset);
-  }
 
   vec2 p = (uv - 0.5) * vec2(uAspect, 1.0);
 
@@ -4498,12 +4517,6 @@ void main() {
 
   vec3 col = paletteColor(v);
 
-  if (uGlitch > 0.01) {
-    float ca = uGlitch * 0.055;
-    col.r = paletteColor(clamp(v + ca, 0.0, 1.0)).r;
-    col.b = paletteColor(clamp(v - ca, 0.0, 1.0)).b;
-  }
-
   if (uHueShift > 0.001) {
     float angle = segIdx / uSymmetry * TAU * uHueShift;
     col = hueRotate(col, angle);
@@ -4516,11 +4529,11 @@ void main() {
   col = (col - 0.5) * uContrast + 0.5;
   col *= uBrightness;
 
-  col = mix(uBgColor, col, smoothstep(0.0, 0.1, v));
+  col *= smoothstep(0.0, 0.1, v);
 
   // Soft corner-only vignette
   col *= 1.0 - smoothstep(0.74, 1.08, r) * 0.28;
 
   gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
 }
-`,Jv=[{name:`Neon`,colors:[[0,1,1],[1,0,1],[0,.4,1],[0,.07,.2]]},{name:`Void`,colors:[[.67,.27,1],[1,.27,.8],[1,1,1],[.07,0,.13]]},{name:`Plasma`,colors:[[1,.47,0],[1,.2,0],[1,.8,.27],[.04,0,0]]},{name:`Holo`,colors:[[0,1,.67],[1,0,.67],[.67,1,0],[0,0,.07]]}],Yv=[{label:`Void`,color:[0,0,0],display:`#000000`},{label:`Navy`,color:[0,.025,.1],display:`#000619`},{label:`Purple`,color:[.06,0,.13],display:`#0f0021`},{label:`Crimson`,color:[.1,0,.03],display:`#1a0008`}];function Xv(e){let{paletteIdx:t,shapeType:n,symmetry:r,speed:i,hueShift:a,hueCycleSpeed:o,brightness:s,contrast:c,bgColorIdx:l,zoomPulse:u,rotSpeed:d,warp:f,glitchTrigger:p}=e,m=(0,v.useRef)(),h=(0,v.useRef)(e);h.current=e;let g=(0,v.useRef)(r),{size:_}=S_(),y=(0,v.useMemo)(()=>({uTime:{value:0},uSpeed:{value:i},uSymmetry:{value:r},uShapeType:{value:n},uPalette:{value:Jv[t].colors.map(e=>new H(...e))},uAspect:{value:_.width/_.height},uHueShift:{value:a},uHueAngle:{value:0},uBrightness:{value:s},uContrast:{value:c},uBgColor:{value:new H(...Yv[l].color)},uZoomPulse:{value:u},uRotOffset:{value:0},uWarp:{value:f},uGlitch:{value:0}}),[]);return(0,v.useEffect)(()=>{m.current&&(m.current.uniforms.uPalette.value=Jv[t].colors.map(e=>new H(...e)))},[t]),(0,v.useEffect)(()=>{m.current&&(m.current.uniforms.uBgColor.value=new H(...Yv[l].color))},[l]),(0,v.useEffect)(()=>{m.current&&(m.current.uniforms.uAspect.value=_.width/_.height)},[_]),(0,v.useEffect)(()=>{!m.current||p===0||(m.current.uniforms.uGlitch.value=1)},[p]),C_((e,t)=>{if(!m.current)return;let n=m.current.uniforms,r=h.current;n.uTime.value+=t,n.uShapeType.value=r.shapeType,g.current+=(r.symmetry-g.current)*Math.min(1,t*7),n.uSymmetry.value=g.current,n.uSpeed.value=r.speed,n.uHueShift.value=r.hueShift,n.uBrightness.value=r.brightness,n.uContrast.value=r.contrast,n.uZoomPulse.value=r.zoomPulse,n.uWarp.value=r.warp,r.rotSpeed>.001&&(n.uRotOffset.value+=r.rotSpeed*.45*t),r.hueCycleSpeed>.001&&(n.uHueAngle.value+=r.hueCycleSpeed*.8*t),n.uGlitch.value>.001&&(n.uGlitch.value=Math.max(0,n.uGlitch.value-t*2.2))}),(0,$.jsxs)(`mesh`,{frustumCulled:!1,children:[(0,$.jsx)(`planeGeometry`,{args:[2,2]}),(0,$.jsx)(`shaderMaterial`,{ref:m,vertexShader:Kv,fragmentShader:qv,uniforms:y})]})}function Zv(e){return(0,$.jsx)(Gv,{orthographic:!0,camera:{position:[0,0,1],near:.1,far:10,zoom:1},gl:{antialias:!1,alpha:!1},style:{position:`fixed`,top:0,left:0,width:`100%`,height:`100%`},children:(0,$.jsx)(Xv,{...e})})}var Qv=(...e)=>e.filter((e,t,n)=>!!e&&e.trim()!==``&&n.indexOf(e)===t).join(` `).trim(),$v=e=>e.replace(/([a-z0-9])([A-Z])/g,`$1-$2`).toLowerCase(),ey=e=>e.replace(/^([A-Z])|[\s-_]+(\w)/g,(e,t,n)=>n?n.toUpperCase():t.toLowerCase()),ty=e=>{let t=ey(e);return t.charAt(0).toUpperCase()+t.slice(1)},ny={xmlns:`http://www.w3.org/2000/svg`,width:24,height:24,viewBox:`0 0 24 24`,fill:`none`,stroke:`currentColor`,strokeWidth:2,strokeLinecap:`round`,strokeLinejoin:`round`},ry=e=>{for(let t in e)if(t.startsWith(`aria-`)||t===`role`||t===`title`)return!0;return!1},iy=(0,v.createContext)({}),ay=()=>(0,v.useContext)(iy),oy=(0,v.forwardRef)(({color:e,size:t,strokeWidth:n,absoluteStrokeWidth:r,className:i=``,children:a,iconNode:o,...s},c)=>{let{size:l=24,strokeWidth:u=2,absoluteStrokeWidth:d=!1,color:f=`currentColor`,className:p=``}=ay()??{},m=r??d?Number(n??u)*24/Number(t??l):n??u;return(0,v.createElement)(`svg`,{ref:c,...ny,width:t??l??ny.width,height:t??l??ny.height,stroke:e??f,strokeWidth:m,className:Qv(`lucide`,p,i),...!a&&!ry(s)&&{"aria-hidden":`true`},...s},[...o.map(([e,t])=>(0,v.createElement)(e,t)),...Array.isArray(a)?a:[a]])}),sy=((e,t)=>{let n=(0,v.forwardRef)(({className:n,...r},i)=>(0,v.createElement)(oy,{ref:i,iconNode:t,className:Qv(`lucide-${$v(ty(e))}`,`lucide-${e}`,n),...r}));return n.displayName=ty(e),n})(`zap`,[[`path`,{d:`M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z`,key:`1xq2db`}]]),cy=[{id:`CIR`,label:`Circuits`},{id:`XTL`,label:`Crystals`},{id:`PLS`,label:`Plasma`},{id:`GEO`,label:`Geo`},{id:`FRC`,label:`Fractal`},{id:`SWM`,label:`Swarm`},{id:`LQD`,label:`Liquid`},{id:`TNL`,label:`Tunnel`},{id:`BOX`,label:`Wire Box`},{id:`SPH`,label:`Sphere`},{id:`GRD`,label:`Wire Grid`},{id:`HEX`,label:`Hex Mesh`}],ly=[4,6,8,12];function uy({title:e,children:t}){return(0,$.jsxs)(`div`,{className:`sb-section`,children:[(0,$.jsx)(`div`,{className:`sb-section-title`,children:e}),t]})}function dy({label:e,value:t,onChange:n,min:r,max:i,step:a,displayValue:o}){return(0,$.jsxs)(`div`,{className:`sb-slider-row`,children:[(0,$.jsxs)(`div`,{className:`sb-slider-header`,children:[(0,$.jsx)(`span`,{className:`sb-slider-label`,children:e}),(0,$.jsx)(`span`,{className:`sb-slider-value`,children:o??t.toFixed(2)})]}),(0,$.jsx)(`input`,{type:`range`,className:`sb-slider`,min:r,max:i,step:a,value:t,onChange:e=>n(parseFloat(e.target.value))})]})}function fy({palette:e,setPalette:t,shapeType:n,setShapeType:r,symmetry:i,setSymmetry:a,speed:o,setSpeed:s,hueShift:c,setHueShift:l,hueCycleSpeed:u,setHueCycleSpeed:d,brightness:f,setBrightness:p,contrast:m,setContrast:h,bgColorIdx:g,setBgColorIdx:_,rotSpeed:y,setRotSpeed:b,zoomPulse:x,setZoomPulse:S,warp:C,setWarp:w,onGlitch:T}){let[E,D]=(0,v.useState)(!1),[O,k]=(0,v.useState)(!1);function A(){k(!0),T(),setTimeout(()=>k(!1),420)}let j=n>=8;return(0,$.jsx)($.Fragment,{children:(0,$.jsxs)(`div`,{className:`sidebar${E?` sidebar--open`:``}`,children:[(0,$.jsxs)(`button`,{className:`sidebar-tab`,onClick:()=>D(e=>!e),"aria-label":E?`Close controls`:`Open controls`,children:[(0,$.jsx)(`span`,{className:`sidebar-tab-label`,children:`CTRL`}),(0,$.jsx)(`span`,{className:`sidebar-tab-arrow${E?` sidebar-tab-arrow--open`:``}`,children:`➤`})]}),(0,$.jsxs)(`div`,{className:`sidebar-body`,children:[(0,$.jsxs)(`div`,{className:`sb-header`,children:[(0,$.jsx)(`span`,{className:`sb-title`,children:`CONTROLS`}),(0,$.jsx)(`button`,{className:`sb-close`,onClick:()=>D(!1),children:`✕`})]}),(0,$.jsxs)(uy,{title:`Pattern`,children:[(0,$.jsx)(`div`,{className:`shape-grid`,children:cy.map((e,t)=>(0,$.jsx)(`button`,{className:`shape-btn${n===t?` active`:``}${t>=8?` wire`:``}`,onClick:()=>r(t),title:e.label,children:e.id},t))}),j&&(0,$.jsx)(`div`,{className:`wire-badge`,children:`WIREFRAME MODE`})]}),(0,$.jsx)(uy,{title:`Symmetry`,children:(0,$.jsx)(`div`,{className:`sym-row`,children:ly.map(e=>(0,$.jsx)(`button`,{className:`step-btn${i===e?` active`:``}`,onClick:()=>a(e),children:e},e))})}),(0,$.jsxs)(uy,{title:`Palette`,children:[(0,$.jsx)(`div`,{className:`palette-row`,children:Jv.map((n,r)=>(0,$.jsx)(`button`,{className:`swatch${e===r?` active`:``}`,onClick:()=>t(r),title:n.name,style:{background:`rgb(${n.colors[0].map(e=>Math.round(e*255)).join(`,`)})`}},r))}),(0,$.jsx)(`div`,{className:`sb-row-label`,children:`Background`}),(0,$.jsx)(`div`,{className:`palette-row`,children:Yv.map((e,t)=>(0,$.jsx)(`button`,{className:`swatch swatch--sq${g===t?` active`:``}`,onClick:()=>_(t),title:e.label,style:{background:e.display}},t))})]}),(0,$.jsxs)(uy,{title:`Color`,children:[(0,$.jsx)(dy,{label:`Hue Spread`,value:c,onChange:l,min:0,max:1,step:.01}),(0,$.jsx)(dy,{label:`Hue Cycle`,value:u,onChange:d,min:0,max:1,step:.01}),(0,$.jsx)(dy,{label:`Brightness`,value:f,onChange:p,min:.3,max:2,step:.05}),(0,$.jsx)(dy,{label:`Contrast`,value:m,onChange:h,min:.5,max:2,step:.05})]}),(0,$.jsxs)(uy,{title:`Motion`,children:[(0,$.jsx)(dy,{label:`Speed`,value:o,onChange:s,min:.05,max:3,step:.05}),(0,$.jsx)(dy,{label:`Spin`,value:y,onChange:b,min:0,max:1,step:.01}),(0,$.jsx)(dy,{label:`Zoom Pulse`,value:x,onChange:S,min:0,max:1,step:.01}),(0,$.jsx)(dy,{label:`Warp`,value:C,onChange:w,min:0,max:1,step:.01})]}),(0,$.jsx)(uy,{title:`Effects`,children:(0,$.jsxs)(`button`,{className:`glitch-btn${O?` glitching`:``}`,onClick:A,children:[(0,$.jsx)(sy,{size:13}),`GLITCH BURST`]})})]})]})})}function py(){let[e,t]=(0,v.useState)(0),[n,r]=(0,v.useState)(2),[i,a]=(0,v.useState)(8),[o,s]=(0,v.useState)(.45),[c,l]=(0,v.useState)(0),[u,d]=(0,v.useState)(0),[f,p]=(0,v.useState)(1),[m,h]=(0,v.useState)(1.1),[g,_]=(0,v.useState)(0),[y,b]=(0,v.useState)(0),[x,S]=(0,v.useState)(0),[C,w]=(0,v.useState)(0),[T,E]=(0,v.useState)(0);return(0,$.jsxs)($.Fragment,{children:[(0,$.jsx)(Zv,{paletteIdx:e,shapeType:n,symmetry:i,speed:o,hueShift:c,hueCycleSpeed:u,brightness:f,contrast:m,bgColorIdx:g,zoomPulse:x,rotSpeed:y,warp:C,glitchTrigger:T}),(0,$.jsx)(fy,{palette:e,setPalette:t,shapeType:n,setShapeType:r,symmetry:i,setSymmetry:a,speed:o,setSpeed:s,hueShift:c,setHueShift:l,hueCycleSpeed:u,setHueCycleSpeed:d,brightness:f,setBrightness:p,contrast:m,setContrast:h,bgColorIdx:g,setBgColorIdx:_,rotSpeed:y,setRotSpeed:b,zoomPulse:x,setZoomPulse:S,warp:C,setWarp:w,onGlitch:()=>E(e=>e+1)})]})}(0,y.createRoot)(document.getElementById(`root`)).render((0,$.jsx)(v.StrictMode,{children:(0,$.jsx)(py,{})}));
+`;function Jv(e){let{paletteColors:t,shapeType:n,symmetry:r,speed:i,hueShift:a,hueCycleSpeed:o,brightness:s,contrast:c,zoomPulse:l,rotSpeed:u,warp:d,tunnelDir:f}=e,p=(0,v.useRef)(),m=(0,v.useRef)(e);m.current=e;let h=(0,v.useRef)(r),{size:g}=S_(),_=(0,v.useMemo)(()=>({uTime:{value:0},uSpeed:{value:i},uSymmetry:{value:r},uShapeType:{value:n},uPalette:{value:t.map(e=>new H(...e))},uAspect:{value:g.width/g.height},uResolution:{value:new V(g.width,g.height)},uHueShift:{value:a},uHueAngle:{value:0},uBrightness:{value:s},uContrast:{value:c},uBgColor:{value:new H(0,0,0)},uZoomPulse:{value:l},uRotOffset:{value:0},uWarp:{value:d},uTunnelDir:{value:1}}),[]);return(0,v.useEffect)(()=>{p.current&&(p.current.uniforms.uPalette.value=t.map(e=>new H(...e)))},[t]),(0,v.useEffect)(()=>{p.current&&(p.current.uniforms.uAspect.value=g.width/g.height,p.current.uniforms.uResolution.value.set(g.width,g.height))},[g]),C_((e,t)=>{if(!p.current)return;let n=p.current.uniforms,r=m.current;n.uTime.value+=t,n.uShapeType.value=r.shapeType,h.current+=(r.symmetry-h.current)*Math.min(1,t*7),n.uSymmetry.value=h.current,n.uSpeed.value=r.speed,n.uHueShift.value=r.hueShift,n.uBrightness.value=r.brightness,n.uContrast.value=r.contrast,n.uZoomPulse.value=r.zoomPulse,n.uWarp.value=r.warp,n.uTunnelDir.value=r.tunnelDir,r.rotSpeed>.001&&(n.uRotOffset.value+=r.rotSpeed*.45*t),r.hueCycleSpeed>.001&&(n.uHueAngle.value+=r.hueCycleSpeed*.8*t)}),(0,$.jsxs)(`mesh`,{frustumCulled:!1,children:[(0,$.jsx)(`planeGeometry`,{args:[2,2]}),(0,$.jsx)(`shaderMaterial`,{ref:p,vertexShader:Kv,fragmentShader:qv,uniforms:_})]})}function Yv(e){return(0,$.jsx)(Gv,{orthographic:!0,camera:{position:[0,0,1],near:.1,far:10,zoom:1},gl:{antialias:!1,alpha:!1},style:{position:`fixed`,top:0,left:0,width:`100%`,height:`100%`},children:(0,$.jsx)(Jv,{...e})})}var Xv=(...e)=>e.filter((e,t,n)=>!!e&&e.trim()!==``&&n.indexOf(e)===t).join(` `).trim(),Zv=e=>e.replace(/([a-z0-9])([A-Z])/g,`$1-$2`).toLowerCase(),Qv=e=>e.replace(/^([A-Z])|[\s-_]+(\w)/g,(e,t,n)=>n?n.toUpperCase():t.toLowerCase()),$v=e=>{let t=Qv(e);return t.charAt(0).toUpperCase()+t.slice(1)},ey={xmlns:`http://www.w3.org/2000/svg`,width:24,height:24,viewBox:`0 0 24 24`,fill:`none`,stroke:`currentColor`,strokeWidth:2,strokeLinecap:`round`,strokeLinejoin:`round`},ty=e=>{for(let t in e)if(t.startsWith(`aria-`)||t===`role`||t===`title`)return!0;return!1},ny=(0,v.createContext)({}),ry=()=>(0,v.useContext)(ny),iy=(0,v.forwardRef)(({color:e,size:t,strokeWidth:n,absoluteStrokeWidth:r,className:i=``,children:a,iconNode:o,...s},c)=>{let{size:l=24,strokeWidth:u=2,absoluteStrokeWidth:d=!1,color:f=`currentColor`,className:p=``}=ry()??{},m=r??d?Number(n??u)*24/Number(t??l):n??u;return(0,v.createElement)(`svg`,{ref:c,...ey,width:t??l??ey.width,height:t??l??ey.height,stroke:e??f,strokeWidth:m,className:Xv(`lucide`,p,i),...!a&&!ty(s)&&{"aria-hidden":`true`},...s},[...o.map(([e,t])=>(0,v.createElement)(e,t)),...Array.isArray(a)?a:[a]])}),ay=(e,t)=>{let n=(0,v.forwardRef)(({className:n,...r},i)=>(0,v.createElement)(iy,{ref:i,iconNode:t,className:Xv(`lucide-${Zv($v(e))}`,`lucide-${e}`,n),...r}));return n.displayName=$v(e),n},oy=ay(`chevron-right`,[[`path`,{d:`m9 18 6-6-6-6`,key:`mthhwq`}]]),sy=ay(`x`,[[`path`,{d:`M18 6 6 18`,key:`1bl5f8`}],[`path`,{d:`m6 6 12 12`,key:`d8bk6v`}]]),cy=[{name:`Neon`,colors:[[0,1,1],[1,0,1],[0,.4,1],[0,.07,.2]]},{name:`Void`,colors:[[.67,.27,1],[1,.27,.8],[1,1,1],[.07,0,.13]]},{name:`Plasma`,colors:[[1,.47,0],[1,.2,0],[1,.8,.27],[.04,0,0]]},{name:`Holo`,colors:[[0,1,.67],[1,0,.67],[.67,1,0],[0,0,.07]]}];function ly(e,t=.58){let n=1-Math.abs(2*t-1),r=n*(1-Math.abs(e/60%2-1)),i=t-n/2,a=Math.floor(e/60)%6,[o,s,c]=a===0?[n,r,0]:a===1?[r,n,0]:a===2?[0,n,r]:a===3?[0,r,n]:a===4?[r,0,n]:[n,0,r];return`#`+[o+i,s+i,c+i].map(e=>Math.round(Math.min(1,Math.max(0,e))*255).toString(16).padStart(2,`0`)).join(``)}function uy(e){if(!e)return{h:180,l:.58};let t=parseInt(e.slice(1,3),16)/255,n=parseInt(e.slice(3,5),16)/255,r=parseInt(e.slice(5,7),16)/255,i=Math.max(t,n,r),a=Math.min(t,n,r),o=(i+a)/2,s=i-a;if(s<.001)return{h:180,l:Math.round(o*100)/100};let c=i===t?((n-r)/s+6)%6:i===n?(r-t)/s+2:(t-n)/s+4;return{h:Math.round(c*60),l:Math.round(o*100)/100}}var dy=[{id:`CIR`,label:`Circuits`},{id:`XTL`,label:`Crystals`},{id:`PLS`,label:`Plasma`},{id:`GEO`,label:`Geo`},{id:`FRC`,label:`Fractal`},{id:`SWM`,label:`Swarm`},{id:`LQD`,label:`Liquid`},{id:`TNL`,label:`Tunnel`},{id:`BOX`,label:`Wire Box`},{id:`SPH`,label:`Sphere`},{id:`GRD`,label:`Wire Grid`},{id:`HEX`,label:`Hex Mesh`}],fy=[4,6,8,12];function py({title:e,children:t}){return(0,$.jsxs)(`div`,{className:`sb-section`,children:[(0,$.jsx)(`div`,{className:`sb-section-title`,children:e}),t]})}function my({label:e,value:t,onChange:n,min:r,max:i,step:a,displayValue:o}){return(0,$.jsxs)(`div`,{className:`sb-slider-row`,children:[(0,$.jsxs)(`div`,{className:`sb-slider-header`,children:[(0,$.jsx)(`span`,{className:`sb-slider-label`,children:e}),(0,$.jsx)(`span`,{className:`sb-slider-value`,children:o??t.toFixed(2)})]}),(0,$.jsx)(`input`,{type:`range`,className:`sb-slider`,min:r,max:i,step:a,value:t,onChange:e=>n(parseFloat(e.target.value))})]})}function hy({palette:e,setPalette:t,customColor:n,setCustomColor:r,shapeType:i,setShapeType:a,symmetry:o,setSymmetry:s,speed:c,setSpeed:l,hueShift:u,setHueShift:d,hueCycleSpeed:f,setHueCycleSpeed:p,brightness:m,setBrightness:h,contrast:g,setContrast:_,rotSpeed:y,setRotSpeed:b,zoomPulse:x,setZoomPulse:S,warp:C,setWarp:w,tunnelDir:T,setTunnelDir:E}){let[D,O]=(0,v.useState)(!1),[k,A]=(0,v.useState)(!1),{h:j,l:M}=uy(n);(0,v.useEffect)(()=>{function e(e){e.shiftKey&&e.key===`M`&&O(e=>!e)}return window.addEventListener(`keydown`,e),()=>window.removeEventListener(`keydown`,e)},[]);let ee=i>=8;return(0,$.jsxs)($.Fragment,{children:[(0,$.jsxs)(`button`,{className:`sidebar-tab${D?` sidebar-tab--open`:``}`,onClick:()=>O(e=>!e),"aria-label":D?`Close controls`:`Open controls`,children:[(0,$.jsx)(`span`,{className:`sidebar-tab-label`,children:`CTRL`}),(0,$.jsx)(oy,{size:13,className:`sidebar-tab-arrow${D?` sidebar-tab-arrow--open`:``}`}),(0,$.jsx)(`span`,{className:`sidebar-tab-tooltip`,children:`Shift + M`})]}),(0,$.jsx)(`div`,{className:`sidebar${D?` sidebar--open`:``}`,children:(0,$.jsxs)(`div`,{className:`sidebar-body`,children:[(0,$.jsxs)(`div`,{className:`sb-header`,children:[(0,$.jsx)(`span`,{className:`sb-title`,children:`CONTROLS`}),(0,$.jsx)(`button`,{className:`sb-close`,onClick:()=>O(!1),children:(0,$.jsx)(sy,{size:14})})]}),(0,$.jsxs)(py,{title:`Pattern`,children:[(0,$.jsx)(`div`,{className:`shape-grid`,children:dy.map((e,t)=>(0,$.jsx)(`button`,{className:`shape-btn${i===t?` active`:``}${t>=8?` wire`:``}`,onClick:()=>{t===7&&i===7?E(e=>e*-1):a(t)},title:e.label,children:e.id},t))}),ee&&(0,$.jsx)(`div`,{className:`wire-badge`,children:`WIREFRAME MODE`})]}),(0,$.jsx)(py,{title:`Symmetry`,children:(0,$.jsx)(`div`,{className:`sym-row`,children:fy.map(e=>(0,$.jsx)(`button`,{className:`step-btn${o===e?` active`:``}`,onClick:()=>s(e),children:e},e))})}),(0,$.jsxs)(py,{title:`Palette`,children:[(0,$.jsxs)(`div`,{className:`palette-row`,children:[cy.map((i,a)=>(0,$.jsx)(`button`,{className:`swatch${e===a&&!n?` active`:``}`,onClick:()=>{r(null),t(a),A(!1)},title:i.name,style:{background:`rgb(${i.colors[2].map(e=>Math.round(e*255)).join(`,`)})`}},a)),(0,$.jsx)(`button`,{className:`swatch swatch--custom${n?` active`:``}`,style:{background:n??`conic-gradient(#ff2d6b 0deg 90deg, #00e5ff 90deg 180deg, #ffe600 180deg 270deg, #00ff88 270deg 360deg)`},title:`Custom color`,onClick:()=>{n||r(ly(180)),A(e=>!e)}})]}),k&&(0,$.jsxs)(`div`,{className:`custom-picker`,children:[(0,$.jsx)(`div`,{className:`custom-picker-preview`,style:{background:n}}),(0,$.jsxs)(`div`,{className:`custom-picker-row`,children:[(0,$.jsx)(`span`,{className:`cp-label`,children:`HUE`}),(0,$.jsx)(`input`,{type:`range`,className:`cp-slider hue-slider`,min:0,max:359,step:1,value:j,onChange:e=>r(ly(+e.target.value,M))})]}),(0,$.jsxs)(`div`,{className:`custom-picker-row`,children:[(0,$.jsx)(`span`,{className:`cp-label`,children:`LUM`}),(0,$.jsx)(`input`,{type:`range`,className:`cp-slider`,min:.28,max:.78,step:.01,value:M,onChange:e=>r(ly(j,+e.target.value)),style:{background:`linear-gradient(to right, hsl(${j},90%,18%), hsl(${j},100%,55%), hsl(${j},60%,82%))`}})]})]})]}),(0,$.jsxs)(py,{title:`Color`,children:[(0,$.jsx)(my,{label:`Hue Spread`,value:u,onChange:d,min:0,max:1,step:.01}),(0,$.jsx)(my,{label:`Hue Cycle`,value:f,onChange:p,min:0,max:1,step:.01}),(0,$.jsx)(my,{label:`Brightness`,value:m,onChange:h,min:.3,max:2,step:.05}),(0,$.jsx)(my,{label:`Contrast`,value:g,onChange:_,min:.5,max:2,step:.05})]}),(0,$.jsxs)(py,{title:`Motion`,children:[(0,$.jsx)(my,{label:`Speed`,value:c,onChange:l,min:.05,max:3,step:.05}),(0,$.jsx)(my,{label:`Spin`,value:y,onChange:b,min:0,max:1,step:.01}),(0,$.jsx)(my,{label:`Zoom Pulse`,value:x,onChange:S,min:0,max:1,step:.01}),(0,$.jsx)(my,{label:`Warp`,value:C,onChange:w,min:0,max:1,step:.01})]})]})})]})}function gy(e){return[parseInt(e.slice(1,3),16)/255,parseInt(e.slice(3,5),16)/255,parseInt(e.slice(5,7),16)/255]}function _y(e){let[t,n,r]=gy(e);return[[t*.08,n*.08,r*.08],[t*.45,n*.45,r*.45],[t,n,r],[Math.min(1,t*1.1+.28),Math.min(1,n*1.1+.28),Math.min(1,r*1.1+.28)]]}function vy(){let[e,t]=(0,v.useState)(0),[n,r]=(0,v.useState)(null),[i,a]=(0,v.useState)(2),[o,s]=(0,v.useState)(8),[c,l]=(0,v.useState)(.45),[u,d]=(0,v.useState)(0),[f,p]=(0,v.useState)(0),[m,h]=(0,v.useState)(1),[g,_]=(0,v.useState)(1.1),[y,b]=(0,v.useState)(0),[x,S]=(0,v.useState)(0),[C,w]=(0,v.useState)(0),[T,E]=(0,v.useState)(1);return(0,$.jsxs)($.Fragment,{children:[(0,$.jsx)(Yv,{paletteColors:(0,v.useMemo)(()=>n?_y(n):cy[e].colors,[e,n]),shapeType:i,symmetry:o,speed:c,hueShift:u,hueCycleSpeed:f,brightness:m,contrast:g,zoomPulse:x,rotSpeed:y,warp:C,tunnelDir:T}),(0,$.jsx)(hy,{palette:e,setPalette:t,customColor:n,setCustomColor:r,shapeType:i,setShapeType:a,symmetry:o,setSymmetry:s,speed:c,setSpeed:l,hueShift:u,setHueShift:d,hueCycleSpeed:f,setHueCycleSpeed:p,brightness:m,setBrightness:h,contrast:g,setContrast:_,rotSpeed:y,setRotSpeed:b,zoomPulse:x,setZoomPulse:S,warp:C,setWarp:w,tunnelDir:T,setTunnelDir:E})]})}(0,y.createRoot)(document.getElementById(`root`)).render((0,$.jsx)(v.StrictMode,{children:(0,$.jsx)(vy,{})}));
