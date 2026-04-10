@@ -20,7 +20,7 @@ function KaleidoscopeMesh(props) {
   propsRef.current  = props
   const symRef      = useRef(symmetry)
 
-  const breathRef        = useRef({ phaseIndex: 0, elapsed: 0, lastLabel: null, lastProgress: -1, lastActivePhaseName: 'EXHALE' })
+  const breathRef        = useRef({ phaseIndex: 0, elapsed: 0, lastActivePhaseName: 'EXHALE' })
   const breathCurrentRef = useRef({ brightness: 1.0, zoomPulse: 0, warp: 0, breath: 0 })
 
   const { size } = useThree()
@@ -57,7 +57,7 @@ function KaleidoscopeMesh(props) {
   }, [size])
 
   useEffect(() => {
-    breathRef.current = { phaseIndex: 0, elapsed: 0, lastLabel: null, lastProgress: -1, lastActivePhaseName: 'EXHALE' }
+    breathRef.current = { phaseIndex: 0, elapsed: 0, lastActivePhaseName: 'EXHALE' }
     if (!breathMode && setBreathPhaseRef) {
       setBreathPhaseRef.current({ label: null, progress: 0 })
     }
@@ -123,12 +123,7 @@ function KaleidoscopeMesh(props) {
         br.phaseIndex  = (br.phaseIndex + 1) % mode.phases.length
       }
 
-      const roundedProgress = Math.round(progress * 10) / 10
-      if (phase.name !== br.lastLabel || roundedProgress !== br.lastProgress) {
-        if (p.setBreathPhaseRef) p.setBreathPhaseRef.current({ label: phase.name, progress })
-        br.lastLabel    = phase.name
-        br.lastProgress = roundedProgress
-      }
+      if (p.setBreathPhaseRef) p.setBreathPhaseRef.current({ label: phase.name, progress })
     }
 
     // Lerp current values toward targets (~300ms transition)
