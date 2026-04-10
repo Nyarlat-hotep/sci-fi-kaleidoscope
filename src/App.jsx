@@ -25,7 +25,7 @@ function colorToPalette(hex) {
 export default function App() {
   const [palette,       setPalette]       = useState(0)
   const [customColor,   setCustomColor]   = useState(null)
-  const [shapeType,     setShapeType]     = useState(2)
+  const [shapeType,     setShapeType]     = useState(3)
   const [symmetry,      setSymmetry]      = useState(8)
   const [speed,         setSpeed]         = useState(0.45)
 
