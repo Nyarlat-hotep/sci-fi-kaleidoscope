@@ -16,6 +16,7 @@ uniform float uZoomPulse;
 uniform float uRotOffset;
 uniform float uWarp;
 uniform float uBreath;
+uniform float uZoomScroll;
 uniform vec2  uResolution;
 uniform float uTunnelDir;
 
@@ -388,6 +389,23 @@ float hexMesh(vec2 p, float t) {
   return clamp(edge + vg * (0.4 + 0.6 * pulse) + packet, 0.0, 1.0);
 }
 
+// ── Pattern dispatch ───────────────────────────────────────────────────────
+
+float evalPattern(vec2 p, float t) {
+  if      (uShapeType == 0)  return circuits(p, t);
+  else if (uShapeType == 1)  return crystals(p, t);
+  else if (uShapeType == 2)  return plasma(p, t);
+  else if (uShapeType == 3)  return geometric(p, t);
+  else if (uShapeType == 4)  return fractal(p, t);
+  else if (uShapeType == 5)  return swarm(p, t);
+  else if (uShapeType == 6)  return liquid(p, t);
+  else if (uShapeType == 7)  return tunnel(p, t);
+  else if (uShapeType == 8)  return wireGrid(p, t);
+  else if (uShapeType == 9)  return matrixRain(p, t);
+  else if (uShapeType == 10) return scanlines(p, t);
+  else                       return hexMesh(p, t);
+}
+
 // ── Palette mapping ────────────────────────────────────────────────────────
 
 vec3 paletteColor(float t) {
@@ -433,18 +451,24 @@ void main() {
 
   float animTime = uTime * uSpeed;
   float v;
-  if      (uShapeType == 0)  v = circuits(p, animTime);
-  else if (uShapeType == 1)  v = crystals(p, animTime);
-  else if (uShapeType == 2)  v = plasma(p, animTime);
-  else if (uShapeType == 3)  v = geometric(p, animTime);
-  else if (uShapeType == 4)  v = fractal(p, animTime);
-  else if (uShapeType == 5)  v = swarm(p, animTime);
-  else if (uShapeType == 6)  v = liquid(p, animTime);
-  else if (uShapeType == 7)  v = tunnel(p, animTime);
-  else if (uShapeType == 8)  v = wireGrid(p, animTime);
-  else if (uShapeType == 9)  v = matrixRain(p, animTime);
-  else if (uShapeType == 10) v = scanlines(p, animTime);
-  else                       v = hexMesh(p, animTime);
+
+  if (uZoomScroll > 0.001) {
+    // Two multiplicative-scale layers offset by half-period — works for all
+    // patterns including swarm. Scale sweeps from ~1.9x (zoomed out) down to
+    // ~0.6x (zoomed in) exponentially, then cross-fades into the next cycle.
+    float speed  = uZoomScroll * 0.28;
+    float tA     = mod(uTime * speed, 1.0);
+    float tB     = mod(uTime * speed + 0.5, 1.0);
+    float scaleA = exp(mix(0.65, -0.50, tA));
+    float scaleB = exp(mix(0.65, -0.50, tB));
+    float wA     = sin(tA * PI);
+    float wB     = sin(tB * PI);
+    v = (evalPattern(p * scaleA, animTime) * wA +
+         evalPattern(p * scaleB, animTime) * wB)
+        / (wA + wB + 0.001);
+  } else {
+    v = evalPattern(p, animTime);
+  }
 
   vec3 col = paletteColor(v);
 

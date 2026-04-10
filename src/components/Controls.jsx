@@ -87,6 +87,7 @@ export default function Controls({
   rotSpeed, setRotSpeed,
   zoomPulse, setZoomPulse,
   warp, setWarp,
+  zoomScroll, setZoomScroll,
   tunnelDir, setTunnelDir,
   breathMode, setBreathMode,
 }) {
@@ -229,6 +230,7 @@ export default function Controls({
             <SliderRow label="Speed"         value={speed}         onChange={setSpeed}         min={0.05} max={3}  step={0.05} />
             <SliderRow label="Spin"          value={rotSpeed}      onChange={setRotSpeed}      min={0}    max={1}  step={0.01} />
             <SliderRow label="Zoom Pulse"    value={zoomPulse}     onChange={setZoomPulse}     min={0}    max={1}  step={0.01} />
+            <SliderRow label="Zoom Scroll"   value={zoomScroll}    onChange={setZoomScroll}    min={0}    max={1}  step={0.01} />
             <SliderRow label="Warp"          value={warp}          onChange={setWarp}          min={0}    max={1}  step={0.01} />
           </Section>
 

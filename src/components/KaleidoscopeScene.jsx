@@ -10,7 +10,7 @@ function KaleidoscopeMesh(props) {
     paletteColors, shapeType, symmetry, speed,
     hueShift, hueCycleSpeed,
     brightness, contrast,
-    zoomPulse, rotSpeed, warp,
+    zoomPulse, rotSpeed, warp, zoomScroll,
     tunnelDir,
     breathMode, setBreathPhaseRef,
   } = props
@@ -43,6 +43,7 @@ function KaleidoscopeMesh(props) {
     uWarp:       { value: warp },
     uTunnelDir:  { value: 1 },
     uBreath:     { value: 0 },
+    uZoomScroll: { value: 0 },
   }), []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -134,10 +135,11 @@ function KaleidoscopeMesh(props) {
     breathCurrentRef.current.warp       += (targetWarp       - breathCurrentRef.current.warp)        * s
     breathCurrentRef.current.breath     += (targetBreath     - breathCurrentRef.current.breath)      * sb
 
-    u.uBrightness.value = breathCurrentRef.current.brightness
-    u.uZoomPulse.value  = breathCurrentRef.current.zoomPulse
-    u.uWarp.value       = breathCurrentRef.current.warp
-    u.uBreath.value     = breathCurrentRef.current.breath
+    u.uBrightness.value  = breathCurrentRef.current.brightness
+    u.uZoomPulse.value   = breathCurrentRef.current.zoomPulse
+    u.uWarp.value        = breathCurrentRef.current.warp
+    u.uBreath.value      = breathCurrentRef.current.breath
+    u.uZoomScroll.value  = p.zoomScroll
   })
 
   return (

@@ -36,6 +36,7 @@ export default function App() {
   const [rotSpeed,      setRotSpeed]      = useState(0)
   const [zoomPulse,     setZoomPulse]     = useState(0)
   const [warp,          setWarp]          = useState(0)
+  const [zoomScroll,    setZoomScroll]    = useState(0)
   const [tunnelDir,     setTunnelDir]     = useState(1)
 
   const [breathMode,    setBreathMode]    = useState(null)
@@ -62,6 +63,7 @@ export default function App() {
         zoomPulse={zoomPulse}
         rotSpeed={rotSpeed}
         warp={warp}
+        zoomScroll={zoomScroll}
         tunnelDir={tunnelDir}
         breathMode={breathMode}
         setBreathPhaseRef={setBreathPhaseRef}
@@ -79,6 +81,7 @@ export default function App() {
         rotSpeed={rotSpeed}           setRotSpeed={setRotSpeed}
         zoomPulse={zoomPulse}         setZoomPulse={setZoomPulse}
         warp={warp}                   setWarp={setWarp}
+        zoomScroll={zoomScroll}       setZoomScroll={setZoomScroll}
         tunnelDir={tunnelDir}         setTunnelDir={setTunnelDir}
         breathMode={breathMode}       setBreathMode={setBreathMode}
       />
