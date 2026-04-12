@@ -165,15 +165,17 @@ float fractal(vec2 p, float t) {
 // ── Pattern 5: Swarm ──────────────────────────────────────────────────────
 
 float swarm(vec2 p, float t) {
+  // Scale down coords so orbital radii fill the full screen space
+  p *= 0.55;
   float v = 0.0;
-  for (int i = 0; i < 22; i++) {
+  for (int i = 0; i < 32; i++) {
     float fi  = float(i);
     float phi = fi * 2.39996323;
-    float orb = 0.07 + fract(fi*0.618) * 0.4;
+    float orb = 0.05 + fract(fi*0.618) * 0.44;
     float spd = 0.09 + fract(fi*0.317) * 0.28;
     float ang = t*spd + phi;
     vec2  pos = vec2(cos(ang), sin(ang)) * orb;
-    float sz  = 0.011 + fract(fi*0.471) * 0.02;
+    float sz  = 0.012 + fract(fi*0.471) * 0.022;
 
     // Use squared distance to avoid sqrt for core + halo tests
     vec2  dp  = p - pos;
