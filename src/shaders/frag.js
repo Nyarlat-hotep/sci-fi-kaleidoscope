@@ -304,8 +304,8 @@ float wireGrid(vec2 p, float t) {
   float scroll = fract(t * 0.14);
   for (int i = 0; i < 8; i++) {
     float scale = fract(float(i) / 8.0 + scroll);
-    float ry  = 0.04 + scale * 0.45;
-    float rx  = ry * 1.3;
+    float ry  = 0.03 + scale * 0.62;   // reaches past vertical edges
+    float rx  = ry * uAspect;           // matches horizontal extent
     float d   = sdBox(p, vec2(rx, ry));
     float br  = 0.35 + (1.0 - scale) * 0.65;
     float ad  = abs(d);
@@ -328,9 +328,9 @@ float wireGrid(vec2 p, float t) {
   // Center axis connectors
   float aw = 1.5 * px;
   v += (smoothstep(aw, 0.0, abs(p.x)) + smoothstep(aw*6.0, aw, abs(p.x)) * 0.35)
-     * smoothstep(0.52, 0.0, abs(p.y)) * 0.55;
+     * smoothstep(0.66, 0.0, abs(p.y)) * 0.55;
   v += (smoothstep(aw, 0.0, abs(p.y)) + smoothstep(aw*6.0, aw, abs(p.y)) * 0.35)
-     * smoothstep(0.68, 0.0, abs(p.x)) * 0.55;
+     * smoothstep(uAspect * 0.55, 0.0, abs(p.x)) * 0.55;
 
   return clamp(v, 0.0, 1.0);
 }
@@ -339,7 +339,7 @@ float wireGrid(vec2 p, float t) {
 // Orthographic wireframe globe — latitude rings + slowly spinning longitudes
 
 float matrixRain(vec2 p, float t) {
-  float R  = 0.41;
+  float R  = 0.62;
   float r2 = dot(p, p);
   float R2 = R * R;
   float r  = sqrt(r2);
