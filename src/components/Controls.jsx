@@ -143,7 +143,7 @@ export default function Controls({
                   }}
                   title={s.label}
                 >
-                  {s.id}
+                  {s.label}
                 </button>
               ))}
             </div>

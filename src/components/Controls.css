@@ -196,7 +196,7 @@
 
 .shape-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 5px;
 }
 
@@ -206,9 +206,9 @@
   border-radius: 3px;
   color: var(--sb-text);
   font-family: var(--font-mono);
-  font-size: 0.55rem;
-  letter-spacing: 0.04em;
-  padding: 5px 2px;
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  padding: 7px 4px;
   cursor: pointer;
   transition: border-color 0.13s, color 0.13s, background 0.13s, box-shadow 0.13s;
   text-align: center;
