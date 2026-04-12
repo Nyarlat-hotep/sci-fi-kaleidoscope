@@ -194,15 +194,79 @@ float swarm(vec2 p, float t) {
   return clamp(v, 0.0, 1.0);
 }
 
-// ── Pattern 6: Liquid ─────────────────────────────────────────────────────
+// ── Pattern 6: Moiré Rings ────────────────────────────────────────────────
+// Three sets of concentric rings from slowly drifting emitters.
+// Multiplicative interference → sharp bright peaks, hard nulls.
 
-float liquid(vec2 p, float t) {
-  const float S = 0.24;
-  vec2 q = vec2(sin(p.x*2.1+t*0.22)+sin(p.y*1.8-t*0.28), cos(p.x*1.7-t*0.18)+cos(p.y*2.3+t*0.14))*S;
-  vec2 r2 = vec2(sin((p.x+q.x)*1.9+t*0.14)+sin((p.y+q.y)*2.1), cos((p.x+q.x)*2.2)+cos((p.y+q.y)*1.8-t*0.19))*(S*0.65);
-  vec2 wp = p + q + r2;
-  float v = sin(wp.x*2.9+t*0.36)+sin(wp.y*2.5-t*0.29)+sin((wp.x+wp.y)*2.1+t*0.19)+sin(length(wp)*4.4-t*0.47);
-  return smoothstep(-4.0, 4.0, v)*0.82 + 0.06;
+float moireRings(vec2 p, float t) {
+  vec2 a = vec2(cos(t*0.11),          sin(t*0.073))       * 0.30;
+  vec2 b = vec2(cos(t*0.083 + 2.094), sin(t*0.13 + 1.5))  * 0.27;
+  vec2 c = vec2(cos(t*0.097 + 4.189), sin(t*0.091 + 3.2)) * 0.24;
+
+  float f  = 21.0;
+  float va = sin(length(p - a) * f        - t*0.52) * 0.5 + 0.5;
+  float vb = sin(length(p - b) * f * 1.08 - t*0.41) * 0.5 + 0.5;
+  float vc = sin(length(p - c) * f * 0.94 - t*0.63) * 0.5 + 0.5;
+
+  return pow(clamp(va * vb * vc, 0.0, 1.0), 0.5);
+}
+
+// ── Pattern 7: Truchet ────────────────────────────────────────────────────
+// Grid of randomly oriented quarter-circle arcs.
+// Creates connected maze/weave curves — crisp lines, nothing wave-based.
+
+float truchet(vec2 p, float t) {
+  p *= 5.0;
+  vec2 ip = floor(p);
+  vec2 fp = fract(p);
+
+  float h  = step(0.5, hash(ip));
+  float ch = hash(ip + vec2(3.1, 7.4));
+  float W  = 0.055;
+  float GW = W * 5.5;
+  float R  = 0.5;
+
+  float d1, d2;
+  if (h > 0.5) {
+    d1 = abs(length(fp)                  - R);
+    d2 = abs(length(fp - vec2(1.0, 1.0)) - R);
+  } else {
+    d1 = abs(length(fp - vec2(1.0, 0.0)) - R);
+    d2 = abs(length(fp - vec2(0.0, 1.0)) - R);
+  }
+
+  float dMin  = min(d1, d2);
+  float pulse = 0.65 + 0.35 * sin(t * 1.1 + ch * TAU);
+  float core  = smoothstep(W, 0.0, dMin);
+  float glow  = smoothstep(GW, W, dMin) * 0.35;
+  return clamp((core + glow) * pulse, 0.0, 1.0);
+}
+
+// ── Pattern 8: Turing ─────────────────────────────────────────────────────
+// Activator-inhibitor approximation: fine-scale rings (activator) minus
+// coarse-scale rings (inhibitor) → thresholded spots and stripes.
+
+float turing(vec2 p, float t) {
+  float A = 0.0, I = 0.0;
+  for (int i = 0; i < 5; i++) {
+    float fi = float(i);
+    vec2  ca = (hash2(vec2(fi, fi*7.1 + 1.3)) * 2.0 - 1.0) * 0.5;
+    float aa = t * (0.04 + fi * 0.009);
+    ca = vec2(ca.x*cos(aa) - ca.y*sin(aa), ca.x*sin(aa) + ca.y*cos(aa));
+    A += cos(length(p - ca) * 16.0 - t*0.35 + fi*1.7);
+
+    vec2  ci = (hash2(vec2(fi*3.3 + 11.0, fi*1.9 + 5.7)) * 2.0 - 1.0) * 0.45;
+    float ai = t * (0.022 + fi * 0.005);
+    ci = vec2(ci.x*cos(ai) - ci.y*sin(ai), ci.x*sin(ai) + ci.y*cos(ai));
+    I += cos(length(p - ci) * 6.5  - t*0.13 + fi*2.3);
+  }
+  A /= 5.0;
+  I /= 5.0;
+
+  float diff  = A - I * 0.85;
+  float spots = smoothstep(-0.2, 0.2, diff);
+  float edges = smoothstep(0.05, 0.0, abs(diff)) * 0.8;
+  return clamp(spots * 0.8 + edges, 0.0, 1.0);
 }
 
 // ── Pattern 7: Tunnel ─────────────────────────────────────────────────────
@@ -400,11 +464,13 @@ float evalPattern(vec2 p, float t) {
   else if (uShapeType == 3)  return geometric(p, t);
   else if (uShapeType == 4)  return fractal(p, t);
   else if (uShapeType == 5)  return swarm(p, t);
-  else if (uShapeType == 6)  return liquid(p, t);
-  else if (uShapeType == 7)  return tunnel(p, t);
-  else if (uShapeType == 8)  return wireGrid(p, t);
-  else if (uShapeType == 9)  return matrixRain(p, t);
-  else if (uShapeType == 10) return scanlines(p, t);
+  else if (uShapeType == 6)  return moireRings(p, t);
+  else if (uShapeType == 7)  return truchet(p, t);
+  else if (uShapeType == 8)  return turing(p, t);
+  else if (uShapeType == 9)  return tunnel(p, t);
+  else if (uShapeType == 10) return wireGrid(p, t);
+  else if (uShapeType == 11) return matrixRain(p, t);
+  else if (uShapeType == 12) return scanlines(p, t);
   else                       return hexMesh(p, t);
 }
 
