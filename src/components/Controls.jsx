@@ -40,6 +40,7 @@ const SHAPES = [
   { id: 'TCH', label: 'Truchet'   },
   { id: 'TRN', label: 'Turing'    },
   { id: 'TNL', label: 'Tunnel'    },
+  { id: 'LVK', label: 'Watcher'  },
   // ── Wireframe ────────────────
   { id: 'BOX', label: 'Wire Box'  },
   { id: 'SPH', label: 'Sphere'    },
@@ -105,7 +106,7 @@ export default function Controls({
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  const isWireframe = shapeType >= 10
+  const isWireframe = shapeType >= 11
 
   return (
     <>
@@ -138,7 +139,7 @@ export default function Controls({
               {SHAPES.map((s, i) => (
                 <button
                   key={i}
-                  className={`shape-btn${shapeType === i ? ' active' : ''}${i >= 10 ? ' wire' : ''}`}
+                  className={`shape-btn${shapeType === i ? ' active' : ''}${i >= 11 ? ' wire' : ''}${i === 10 ? ' watcher' : ''}`}
                   onClick={() => {
                     if (i === 9 && shapeType === 9) setTunnelDir(d => d * -1)
                     else setShapeType(i)

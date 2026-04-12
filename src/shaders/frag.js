@@ -455,6 +455,53 @@ float hexMesh(vec2 p, float t) {
   return clamp(edge + vg * (0.4 + 0.6 * pulse) + packet, 0.0, 1.0);
 }
 
+// ── Pattern 10: Watcher ───────────────────────────────────────────────────
+// Tentacle arm + sucker nodes + drifting eye in a near-total void.
+// After kaleidoscope fold: radial tentacle ring + mandala of watching eyes.
+
+float lovecraft(vec2 p, float t) {
+  float v  = 0.0;
+  float r  = length(p);
+  float a  = atan(p.y, p.x);
+  float wt = t * 0.21;
+
+  // ── Tentacle arm ──────────────────────────────────────────────────────
+  float armA = sin(r * 3.5 - wt) * 0.15 + cos(r * 2.1 + wt * 0.61) * 0.09;
+  float armW = max(0.012, 0.055 - r * 0.04);
+  float arm  = smoothstep(armW, 0.0, abs(a - armA))
+             * smoothstep(0.04, 0.14, r)
+             * smoothstep(0.72, 0.30, r);
+
+  // ── Sucker nodes ──────────────────────────────────────────────────────
+  float nodeT  = fract(r / 0.092 - t * 0.085);
+  float nodeD  = abs(nodeT - 0.5) * 0.092;
+  float nodeR  = 0.013;
+  float sucker = smoothstep(nodeR,       0.0, nodeD) * arm * 1.4;
+  float suckIn = smoothstep(nodeR * 0.5, 0.0, nodeD) * arm * 0.6;
+  arm = arm * (1.0 - suckIn) + sucker;
+
+  // ── Drifting eye ──────────────────────────────────────────────────────
+  vec2  eyePos    = vec2(sin(t * 0.09) * 0.24, cos(t * 0.063) * 0.19);
+  vec2  ep        = p - eyePos;
+  float er        = length(ep);
+  float irisR     = 0.068;
+  float pupilR    = irisR * 0.52;
+  float pupilMask = smoothstep(0.0, pupilR, er);
+  float iris      = smoothstep(0.011, 0.0, abs(er - irisR)) * 0.95;
+  float irisText  = 1.0 + 0.15 * sin(atan(ep.y, ep.x) * 8.0 + t * 0.28);
+  float eyeGlow   = smoothstep(irisR * 2.2, irisR * 0.9, er) * 0.20;
+  float eye       = (iris * irisText + eyeGlow) * pupilMask;
+
+  // ── Vein network ──────────────────────────────────────────────────────
+  float veinV = sin(a * 9.0 + sin(r * 5.0 + t * 0.18) * 0.85 + t * 0.12);
+  float vein  = smoothstep(0.016, 0.0, abs(veinV))
+              * smoothstep(0.0, 0.09, r)
+              * smoothstep(0.65, 0.12, r) * 0.20;
+
+  v = arm * 0.55 + eye + vein;
+  return clamp(v, 0.0, 1.0);
+}
+
 // ── Pattern dispatch ───────────────────────────────────────────────────────
 
 float evalPattern(vec2 p, float t) {
@@ -468,9 +515,10 @@ float evalPattern(vec2 p, float t) {
   else if (uShapeType == 7)  return truchet(p, t);
   else if (uShapeType == 8)  return turing(p, t);
   else if (uShapeType == 9)  return tunnel(p, t);
-  else if (uShapeType == 10) return wireGrid(p, t);
-  else if (uShapeType == 11) return matrixRain(p, t);
-  else if (uShapeType == 12) return scanlines(p, t);
+  else if (uShapeType == 10) return lovecraft(p, t);
+  else if (uShapeType == 11) return wireGrid(p, t);
+  else if (uShapeType == 12) return matrixRain(p, t);
+  else if (uShapeType == 13) return scanlines(p, t);
   else                       return hexMesh(p, t);
 }
 

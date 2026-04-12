@@ -226,6 +226,24 @@
   box-shadow: 0 0 6px color-mix(in srgb, var(--sb-accent) 25%, transparent);
 }
 
+/* Watcher button gets a sinister red tint */
+.shape-btn.watcher {
+  border-color: color-mix(in srgb, #ff2244 38%, transparent);
+  color: #cc3355;
+}
+
+.shape-btn.watcher:hover {
+  border-color: color-mix(in srgb, #ff2244 50%, transparent);
+  color: #ff3366;
+}
+
+.shape-btn.watcher.active {
+  border-color: #ff2244;
+  color: #ff2244;
+  background: color-mix(in srgb, #ff2244 7%, transparent);
+  box-shadow: 0 0 6px color-mix(in srgb, #ff2244 30%, transparent);
+}
+
 /* Wireframe shape buttons get a green tint */
 .shape-btn.wire {
   border-color: color-mix(in srgb, var(--sb-wire) 38%, transparent);
