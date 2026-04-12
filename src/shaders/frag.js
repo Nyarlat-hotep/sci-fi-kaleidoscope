@@ -212,18 +212,24 @@ float moireRings(vec2 p, float t) {
 }
 
 // ── Pattern 7: Truchet ────────────────────────────────────────────────────
-// Grid of randomly oriented quarter-circle arcs.
-// Creates connected maze/weave curves — crisp lines, nothing wave-based.
+// Quarter-circle arcs with checkerboard orientation — every arc endpoint
+// connects to its neighbor, forming continuous flowing meander paths.
 
 float truchet(vec2 p, float t) {
-  p *= 5.0;
+  p *= 7.0;
+  // Slow drift so the pattern feels alive
+  p += vec2(sin(t * 0.06) * 1.2, cos(t * 0.05) * 1.0);
+
   vec2 ip = floor(p);
   vec2 fp = fract(p);
 
-  float h  = step(0.5, hash(ip));
-  float ch = hash(ip + vec2(3.1, 7.4));
-  float W  = 0.055;
-  float GW = W * 5.5;
+  // Checkerboard base: mod(ix+iy, 2) guarantees every arc connects to all 4 neighbors.
+  // Flip whole 3×3 blocks via hash for regional variety without breaking connectivity.
+  float block = step(0.5, hash(floor(ip / 3.0)));
+  float h     = mod(ip.x + ip.y + block * 3.0, 2.0);
+
+  float W  = 0.03;
+  float GW = W * 4.5;
   float R  = 0.5;
 
   float d1, d2;
@@ -236,9 +242,10 @@ float truchet(vec2 p, float t) {
   }
 
   float dMin  = min(d1, d2);
-  float pulse = 0.65 + 0.35 * sin(t * 1.1 + ch * TAU);
+  float ch    = hash(ip + vec2(3.1, 7.4));
+  float pulse = 0.6 + 0.4 * sin(t * 1.0 + ch * TAU);
   float core  = smoothstep(W, 0.0, dMin);
-  float glow  = smoothstep(GW, W, dMin) * 0.35;
+  float glow  = smoothstep(GW, W, dMin) * 0.3;
   return clamp((core + glow) * pulse, 0.0, 1.0);
 }
 
