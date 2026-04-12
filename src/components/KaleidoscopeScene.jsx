@@ -75,7 +75,12 @@ function KaleidoscopeMesh(props) {
       : 1.0
     u.uTime.value      += delta * breathSpeedMult
     u.uShapeType.value  = p.shapeType
-    symRef.current      = symRef.current + (p.symmetry - symRef.current) * Math.min(1, delta * 7)
+    // Snap symmetry instantly when warp or zoom scroll are active — lerping
+    // the symmetry fold angle causes those effects to spin during transitions
+    const symLerp = (p.warp > 0.001 || p.zoomScroll > 0.001)
+      ? 1.0
+      : Math.min(1, delta * 7)
+    symRef.current      = symRef.current + (p.symmetry - symRef.current) * symLerp
     u.uSymmetry.value   = symRef.current
     u.uSpeed.value      = p.speed
     u.uHueShift.value   = p.hueShift

@@ -424,14 +424,6 @@ void main() {
 
   vec2 p = (uv - 0.5) * vec2(uAspect, 1.0);
 
-  // Warp applied pre-symmetry so it doesn't interact with the symmetry lerp
-  // (post-symmetry warp caused visible spinning when switching symmetries)
-  if (uWarp > 0.001) {
-    float wt = uTime * 0.26;
-    p.x += sin(p.y*3.1 + wt*0.82) * uWarp * 0.17;
-    p.y += cos(p.x*2.8 - wt*0.61) * uWarp * 0.17;
-  }
-
   float r = length(p);
   float a = atan(p.y, p.x);
 
@@ -450,6 +442,12 @@ void main() {
   if (a > segAngle * 0.5) a = segAngle - a;
 
   p = vec2(cos(a), sin(a)) * r;
+
+  if (uWarp > 0.001) {
+    float wt = uTime * 0.26;
+    p.x += sin(p.y*3.1 + wt*0.82) * uWarp * 0.17;
+    p.y += cos(p.x*2.8 - wt*0.61) * uWarp * 0.17;
+  }
 
   float animTime = uTime * uSpeed;
   float v;
