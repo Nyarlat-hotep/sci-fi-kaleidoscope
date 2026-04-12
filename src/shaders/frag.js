@@ -480,25 +480,54 @@ float lovecraft(vec2 p, float t) {
   float suckIn = smoothstep(nodeR * 0.5, 0.0, nodeD) * arm * 0.6;
   arm = arm * (1.0 - suckIn) + sucker;
 
-  // ── Drifting eye ──────────────────────────────────────────────────────
-  vec2  eyePos    = vec2(sin(t * 0.09) * 0.24, cos(t * 0.063) * 0.19);
-  vec2  ep        = p - eyePos;
-  float er        = length(ep);
-  float irisR     = 0.068;
-  float pupilR    = irisR * 0.52;
-  float pupilMask = smoothstep(0.0, pupilR, er);
-  float iris      = smoothstep(0.011, 0.0, abs(er - irisR)) * 0.95;
-  float irisText  = 1.0 + 0.15 * sin(atan(ep.y, ep.x) * 8.0 + t * 0.28);
-  float eyeGlow   = smoothstep(irisR * 2.2, irisR * 0.9, er) * 0.20;
-  float eye       = (iris * irisText + eyeGlow) * pupilMask;
+  // ── Prominent eye (almond + organic iris) ─────────────────────────────
+  vec2  eyePos   = vec2(sin(t * 0.09) * 0.24, cos(t * 0.063) * 0.19);
+  vec2  ep       = p - eyePos;
+  float erRound  = length(ep);
+  // Vertical scale → almond/eyelid silhouette instead of circle
+  float erAlmond = length(ep * vec2(1.0, 1.55));
 
-  // ── Vein network ──────────────────────────────────────────────────────
-  float veinV = sin(a * 9.0 + sin(r * 5.0 + t * 0.18) * 0.85 + t * 0.12);
-  float vein  = smoothstep(0.016, 0.0, abs(veinV))
-              * smoothstep(0.0, 0.09, r)
-              * smoothstep(0.65, 0.12, r) * 0.20;
+  float irisR  = 0.13;            // 2× bigger than before
+  float pupilR = irisR * 0.42;
 
-  v = arm * 0.55 + eye + vein;
+  // Eyelid mask cuts round iris into an almond shape
+  float eyelidMask = smoothstep(irisR * 1.15, irisR * 0.92, erAlmond);
+
+  // Pupil void (slightly elliptical — more eye-shaped)
+  float erPupil   = length(ep * vec2(1.0, 1.25));
+  float pupilMask = smoothstep(0.0, pupilR, erPupil);
+
+  // Dim iris fill
+  float irisFill = smoothstep(irisR, irisR * 0.85, erRound) * 0.35;
+
+  // Organic iris texture: low-freq wavy striations + concentric rings
+  float irisAng   = atan(ep.y, ep.x);
+  float irisWave  = sin(irisAng * 4.0 + sin(erRound * 14.0) * 1.8 + t * 0.15) * 0.5 + 0.5;
+  float irisRings = sin(erRound * 32.0 - t * 0.4) * 0.5 + 0.5;
+  float irisText  = mix(irisWave, irisRings, 0.4);
+
+  // Bright limbus ring
+  float irisEdge = smoothstep(0.016, 0.0, abs(erRound - irisR)) * 0.9;
+
+  // Crescent highlight on upper inner edge (organic wet-eye look)
+  float lidLight = smoothstep(0.008, 0.0, abs(erRound - irisR * 0.78))
+                 * step(ep.y, 0.0) * 0.5;
+
+  // Wide outer sclera glow
+  float eyeGlow = smoothstep(irisR * 3.2, irisR * 0.85, erRound) * 0.32;
+
+  float eye = ((irisFill * irisText * 0.7 + irisEdge + lidLight) * pupilMask + eyeGlow)
+            * eyelidMask;
+
+  // ── Organic vein network (two domain-warped layers) ───────────────────
+  float w1  = sin(a * 5.0 + sin(r * 4.2 + t * 0.14) * 1.1 + cos(r * 7.0) * 0.6 + t * 0.09);
+  float w2  = sin(a * 7.0 + cos(r * 6.5 - t * 0.11) * 0.9 + t * 0.17);
+  float vein = (smoothstep(0.018, 0.0, abs(w1)) * 0.18
+              + smoothstep(0.012, 0.0, abs(w2)) * 0.12)
+             * smoothstep(0.0, 0.12, r)
+             * smoothstep(0.68, 0.15, r);
+
+  v = arm * 0.55 + eye * 1.2 + vein;
   return clamp(v, 0.0, 1.0);
 }
 
