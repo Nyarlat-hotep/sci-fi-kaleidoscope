@@ -96,6 +96,7 @@ export default function Controls({
 }) {
   const [open, setOpen] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [tabHidden, setTabHidden] = useState(false)
   const { h: currentHue, l: currentLum } = colorToHsl(customColor)
 
   useEffect(() => {
@@ -106,13 +107,33 @@ export default function Controls({
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  useEffect(() => {
+    if (open) {
+      setTabHidden(false)
+      return
+    }
+    let timer = setTimeout(() => setTabHidden(true), 2000)
+    function onActivity() {
+      setTabHidden(false)
+      clearTimeout(timer)
+      timer = setTimeout(() => setTabHidden(true), 2000)
+    }
+    window.addEventListener('mousemove', onActivity)
+    window.addEventListener('pointerdown', onActivity)
+    return () => {
+      clearTimeout(timer)
+      window.removeEventListener('mousemove', onActivity)
+      window.removeEventListener('pointerdown', onActivity)
+    }
+  }, [open])
+
   const isWireframe = shapeType >= 11
 
   return (
     <>
       {/* ── Edge tab — fixed independently so hit area never moves during animation ── */}
       <button
-        className={`sidebar-tab${open ? ' sidebar-tab--open' : ''}`}
+        className={`sidebar-tab${open ? ' sidebar-tab--open' : ''}${tabHidden ? ' sidebar-tab--hidden' : ''}`}
         onClick={() => setOpen(o => !o)}
         aria-label={open ? 'Close controls' : 'Open controls'}
       >

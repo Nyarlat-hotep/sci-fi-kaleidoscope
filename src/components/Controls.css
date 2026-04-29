@@ -59,6 +59,10 @@
   right: 260px;
 }
 
+.sidebar-tab--hidden {
+  right: -32px;
+}
+
 .sidebar-tab:hover {
   background: color-mix(in srgb, var(--sb-accent) 8%, transparent);
   border-color: color-mix(in srgb, var(--sb-accent) 50%, transparent);
