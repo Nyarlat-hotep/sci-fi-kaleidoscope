@@ -4342,39 +4342,42 @@ float turing(vec2 p, float t) {
   return clamp(spots * 0.8 + edges, 0.0, 1.0);
 }
 
-// ── Pattern 7: Tunnel (Wormhole) ──────────────────────────────────────────
-// Hyperspace funnel: logarithmic spiral arms twisting toward a singularity
-// with accelerating pulse rings and 8-fold warp petals at the throat.
+// ── Pattern 7: Tunnel ─────────────────────────────────────────────────────
+// Receding corridor: wall ring segments scrolling toward a dark vanishing
+// point, longitudinal ribs running along the walls with a slight helical
+// twist, and a bright mid-band wall illumination giving forward depth.
 
 float tunnel(vec2 p, float t) {
   float r = length(p);
   float a = atan(p.y, p.x);
 
-  // Perspective depth — smaller r = deeper into the tunnel
-  float depth = 0.20 / max(r, 0.012) - t * 0.55 * uTunnelDir;
+  // Perspective depth — smaller r means deeper into the tunnel
+  float depth = 0.30 / max(r, 0.015) + t * 0.65 * uTunnelDir;
 
-  // 6-fold logarithmic spiral arms twisting with depth
-  float spiral = a * 6.0 + log(max(r, 0.012)) * 4.5 + depth * 0.40;
-  float armBand = abs(fract(spiral / TAU + 0.5) - 0.5);
-  float arms = smoothstep(0.16, 0.018, armBand);
-
-  // Accelerating pulse rings receding into depth (sharp leading edge)
+  // Wall ring segments receding into depth, with a sharp leading edge that
+  // reads as a pulse "rushing" toward the viewer
   float ringPhase = fract(depth);
-  float ring     = smoothstep(0.085, 0.0, abs(ringPhase - 0.50)) * 0.50;
-  float ringEdge = smoothstep(0.025, 0.0, abs(ringPhase - 0.42)) * 1.15;
+  float ring     = smoothstep(0.13, 0.0, abs(ringPhase - 0.50)) * 0.55;
+  float ringEdge = smoothstep(0.035, 0.0, abs(ringPhase - 0.40)) * 1.30;
 
-  // 8-fold warp petals flaring near the throat
-  float petals = pow(0.5 + 0.5 * cos(a * 8.0 + t * 0.85 * uTunnelDir), 5.0);
-  petals *= smoothstep(0.48, 0.07, r) * 0.55;
+  // Longitudinal wall ribs — 6 panels around the circumference, with a
+  // subtle helical twist that gives the corridor character without
+  // dissolving the forward-motion read
+  float ribAngle = a * 6.0 + depth * 0.22;
+  float ribBand  = abs(fract(ribAngle / TAU + 0.5) - 0.5);
+  float ribs     = smoothstep(0.09, 0.015, ribBand) * 0.70;
 
-  // Singularity glow at the center
-  float core = smoothstep(0.045, 0.0, r) * 0.95;
+  // Wall illumination — peak in the mid-radius "wall" band, falling off at
+  // the far vanishing point and at the near outer rim
+  float wallNear = smoothstep(0.04, 0.18, r);
+  float wallFar  = smoothstep(0.62, 0.22, r);
+  float wall     = wallNear * wallFar;
 
-  // Outer depth fade
-  float fade = smoothstep(0.62, 0.08, r);
+  // Faint halo so the vanishing point isn't a hard zero
+  float halo = smoothstep(0.06, 0.0, r) * 0.18;
 
-  float v = arms * 0.45 + ring + ringEdge + petals + core;
-  return clamp(v * (0.4 + fade * 0.7), 0.0, 1.0);
+  float v = (ring + ringEdge + ribs) * (0.25 + wall * 1.10) + halo;
+  return clamp(v, 0.0, 1.0);
 }
 
 // Shared: axis-aligned box SDF
