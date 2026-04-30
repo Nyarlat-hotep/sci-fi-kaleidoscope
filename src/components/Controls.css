@@ -99,6 +99,15 @@
 
 @media (hover: none), (max-width: 768px) {
   .sidebar-tab-tooltip { display: none !important; }
+
+  .sidebar-tab,
+  .sidebar-tab:active,
+  .sidebar-tab:focus,
+  .sidebar-tab:focus-visible {
+    background: #04070e;
+    border-color: color-mix(in srgb, var(--sb-accent) 82%, transparent);
+    -webkit-tap-highlight-color: transparent;
+  }
 }
 
 .sidebar-tab-label {
