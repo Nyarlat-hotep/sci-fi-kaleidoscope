@@ -269,21 +269,39 @@ float turing(vec2 p, float t) {
   return clamp(spots * 0.8 + edges, 0.0, 1.0);
 }
 
-// ── Pattern 7: Tunnel ─────────────────────────────────────────────────────
+// ── Pattern 7: Tunnel (Wormhole) ──────────────────────────────────────────
+// Hyperspace funnel: logarithmic spiral arms twisting toward a singularity
+// with accelerating pulse rings and 8-fold warp petals at the throat.
 
 float tunnel(vec2 p, float t) {
   float r = length(p);
-  if (r < 0.002) return 0.0;
   float a = atan(p.y, p.x);
-  float u = a / PI;
-  float v2 = 0.14 / max(r, 0.01) - t*0.6*uTunnelDir;
-  float gu = abs(fract(u*9.0+0.5)-0.5);
-  float gv = abs(fract(v2*9.0+0.5)-0.5);
-  float grid = smoothstep(0.1, 0.022, min(gu, gv));
-  float streakU = abs(fract(u*4.5 - v2*0.12 + 0.5) - 0.5);
-  float streak = smoothstep(0.065, 0.0, streakU) * 0.35;
-  float depthFade = smoothstep(0.62, 0.04, r);
-  return clamp((grid + streak) * (0.35 + depthFade*0.65), 0.0, 1.0);
+
+  // Perspective depth — smaller r = deeper into the tunnel
+  float depth = 0.20 / max(r, 0.012) - t * 0.55 * uTunnelDir;
+
+  // 6-fold logarithmic spiral arms twisting with depth
+  float spiral = a * 6.0 + log(max(r, 0.012)) * 4.5 + depth * 0.40;
+  float armBand = abs(fract(spiral / TAU + 0.5) - 0.5);
+  float arms = smoothstep(0.16, 0.018, armBand);
+
+  // Accelerating pulse rings receding into depth (sharp leading edge)
+  float ringPhase = fract(depth);
+  float ring     = smoothstep(0.085, 0.0, abs(ringPhase - 0.50)) * 0.50;
+  float ringEdge = smoothstep(0.025, 0.0, abs(ringPhase - 0.42)) * 1.15;
+
+  // 8-fold warp petals flaring near the throat
+  float petals = pow(0.5 + 0.5 * cos(a * 8.0 + t * 0.85 * uTunnelDir), 5.0);
+  petals *= smoothstep(0.48, 0.07, r) * 0.55;
+
+  // Singularity glow at the center
+  float core = smoothstep(0.045, 0.0, r) * 0.95;
+
+  // Outer depth fade
+  float fade = smoothstep(0.62, 0.08, r);
+
+  float v = arms * 0.45 + ring + ringEdge + petals + core;
+  return clamp(v * (0.4 + fade * 0.7), 0.0, 1.0);
 }
 
 // Shared: axis-aligned box SDF

@@ -63,9 +63,15 @@
   right: -32px;
 }
 
-.sidebar-tab:hover {
-  background: color-mix(in srgb, var(--sb-accent) 8%, transparent);
-  border-color: color-mix(in srgb, var(--sb-accent) 50%, transparent);
+@media (hover: hover) {
+  .sidebar-tab:hover {
+    background: color-mix(in srgb, var(--sb-accent) 8%, transparent);
+    border-color: color-mix(in srgb, var(--sb-accent) 50%, transparent);
+  }
+
+  .sidebar-tab:hover .sidebar-tab-tooltip {
+    opacity: 1;
+  }
 }
 
 .sidebar-tab:active {
@@ -89,10 +95,6 @@
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.15s;
-}
-
-.sidebar-tab:hover .sidebar-tab-tooltip {
-  opacity: 1;
 }
 
 @media (hover: none), (max-width: 768px) {
