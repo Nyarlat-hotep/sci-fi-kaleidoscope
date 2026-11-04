@@ -132,6 +132,10 @@ export class Engine {
     if (!this.renderer) return
     const w = window.innerWidth
     const h = window.innerHeight
+    // A minimized / collapsed window reports 0×0. Rendering into a zero-size
+    // canvas is invalid on the GPU, so pause until it has a real size again.
+    this.zeroSize = w === 0 || h === 0
+    if (this.zeroSize) return
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.tier.dpr))
     this.renderer.setSize(w, h, false)
     this.u.aspect.value = w / h
@@ -306,7 +310,7 @@ export class Engine {
     u.pointerForce.value = this.pointerForce
     u.pointer.value.set(this.pointerNDC.x * 0.5 * u.aspect.value, this.pointerNDC.y * 0.5)
 
-    if (!this.inst) return
+    if (!this.inst || this.zeroSize) return
     this.inst.update?.(dt * slow, { pointerNDC: this.pointerNDC, params: p })
     this.pipeline.render()
     this.monitor(dt)

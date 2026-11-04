@@ -20,7 +20,7 @@ export const PATTERN_META = [
   { id: 'hex-mesh',       label: 'Hex Mesh',  group: '3d', fold: false, accent: 'wire' },
   { id: 'nebula',         label: 'Nebula',    group: 'particles', fold: false },
   { id: 'swarm',          label: 'Swarm',     group: 'particles', fold: false },
-  { id: 'attractor',      label: 'Attractor', group: 'particles', fold: false },
+  { id: 'singularity',    label: 'Singularity', group: 'particles', fold: false },
   { id: 'morph',          label: 'Morph',     group: 'particles', fold: false },
   { id: 'warp',           label: 'Warp',      group: 'particles', fold: false },
 ]

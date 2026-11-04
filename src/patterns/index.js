@@ -14,7 +14,7 @@ import wireGrid from './wireGrid'
 import hexMesh from './hexMesh'
 import nebula from './nebula'
 import swarm from './swarm'
-import attractor from './attractor'
+import singularity from './singularity'
 import morph from './morph'
 import warp from './warp'
 
@@ -28,7 +28,7 @@ import warp from './warp'
 export const PATTERNS = [
   circuits, crystals, plasma, geo, fractalFlight, moire, truchet, turing, tunnel,
   watcher, wireBox, sphere, wireGrid, hexMesh,
-  nebula, swarm, attractor, morph, warp,
+  nebula, swarm, singularity, morph, warp,
 ]
 
 export function getPattern(id) {
