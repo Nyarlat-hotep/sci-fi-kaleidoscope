@@ -624,3 +624,17 @@
   background: var(--sb-accent);
   border-radius: 1px;
 }
+
+/* ── Engine status + symmetry hint ───────────────────────────────────── */
+.sym-row--inactive {
+  opacity: 0.4;
+}
+
+.engine-badge {
+  margin-top: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.46rem;
+  letter-spacing: 0.22em;
+  color: color-mix(in srgb, #b98cff 75%, transparent);
+  text-align: center;
+}

@@ -1,5 +1,5 @@
-import { useState, useMemo, useRef } from 'react'
-import KaleidoscopeScene from './components/KaleidoscopeScene'
+import { useState, useMemo } from 'react'
+import EngineView from './engine/EngineView'
 import Controls from './components/Controls'
 import BreathCue from './components/BreathCue'
 import { PALETTES } from './data/palettes'
@@ -25,7 +25,7 @@ function colorToPalette(hex) {
 export default function App() {
   const [palette,       setPalette]       = useState(0)
   const [customColor,   setCustomColor]   = useState(null)
-  const [shapeType,     setShapeType]     = useState(3)
+  const [shapeType,     setShapeType]     = useState('geo')
   const [symmetry,      setSymmetry]      = useState(8)
   const [speed,         setSpeed]         = useState(0.45)
 
@@ -39,10 +39,9 @@ export default function App() {
   const [zoomScroll,    setZoomScroll]    = useState(0)
   const [tunnelDir,     setTunnelDir]     = useState(1)
 
+  const [engineStatus,  setEngineStatus]  = useState(null)
   const [breathMode,    setBreathMode]    = useState(null)
   const [breathPhase,   setBreathPhase]   = useState({ label: null, progress: 0 })
-  const setBreathPhaseRef = useRef(setBreathPhase)
-  setBreathPhaseRef.current = setBreathPhase
 
   const paletteColors = useMemo(
     () => customColor ? colorToPalette(customColor) : PALETTES[palette].colors,
@@ -51,9 +50,8 @@ export default function App() {
 
   return (
     <>
-      <KaleidoscopeScene
+      <EngineView
         paletteColors={paletteColors}
-        shapeType={shapeType}
         symmetry={symmetry}
         speed={speed}
         hueShift={hueShift}
@@ -66,9 +64,13 @@ export default function App() {
         zoomScroll={zoomScroll}
         tunnelDir={tunnelDir}
         breathMode={breathMode}
-        setBreathPhaseRef={setBreathPhaseRef}
+        pattern={shapeType}
+        onBreathPhase={setBreathPhase}
+        onStatus={setEngineStatus}
+        onError={() => setEngineStatus({ error: true })}
       />
       <Controls
+        engineStatus={engineStatus}
         palette={palette}             setPalette={setPalette}
         customColor={customColor}     setCustomColor={setCustomColor}
         shapeType={shapeType}         setShapeType={setShapeType}
@@ -82,7 +84,7 @@ export default function App() {
         zoomPulse={zoomPulse}         setZoomPulse={setZoomPulse}
         warp={warp}                   setWarp={setWarp}
         zoomScroll={zoomScroll}       setZoomScroll={setZoomScroll}
-        tunnelDir={tunnelDir}         setTunnelDir={setTunnelDir}
+        setTunnelDir={setTunnelDir}
         breathMode={breathMode}       setBreathMode={setBreathMode}
       />
       <BreathCue phase={breathPhase} />

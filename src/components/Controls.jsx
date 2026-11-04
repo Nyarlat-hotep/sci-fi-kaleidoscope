@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { ChevronRight, X } from 'lucide-react'
 import { PALETTES } from '../data/palettes'
 import { BREATH_MODES } from '../data/breathModes'
+import { PATTERN_META } from '../patterns/meta'
 import './Controls.css'
 
 // ── Color helpers ──────────────────────────────────────────────────────────
@@ -29,26 +30,7 @@ function colorToHsl(hex) {
   return { h: Math.round(h * 60), l: Math.round(l * 100) / 100 }
 }
 
-const SHAPES = [
-  { id: 'CIR', label: 'Circuits'  },
-  { id: 'XTL', label: 'Crystals'  },
-  { id: 'PLS', label: 'Plasma'    },
-  { id: 'GEO', label: 'Geo'       },
-  { id: 'FRC', label: 'Fractal'   },
-  { id: 'SWM', label: 'Swarm'     },
-  { id: 'MOR', label: 'Moire'     },
-  { id: 'TCH', label: 'Truchet'   },
-  { id: 'TRN', label: 'Turing'    },
-  { id: 'TNL', label: 'Tunnel'    },
-  { id: 'LVK', label: 'Watcher'  },
-  // ── Wireframe ────────────────
-  { id: 'BOX', label: 'Wire Box'  },
-  { id: 'SPH', label: 'Sphere'    },
-  { id: 'GRD', label: 'Wire Grid' },
-  { id: 'HEX', label: 'Hex Mesh'  },
-]
-
-const SYMMETRIES = [4, 6, 8, 12]
+const SYMMETRIES = [2, 4, 6, 8, 12]
 
 function Section({ title, children }) {
   return (
@@ -91,8 +73,9 @@ export default function Controls({
   zoomPulse, setZoomPulse,
   warp, setWarp,
   zoomScroll, setZoomScroll,
-  tunnelDir, setTunnelDir,
+  setTunnelDir,
   breathMode, setBreathMode,
+  engineStatus,
 }) {
   const [open, setOpen] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -127,7 +110,22 @@ export default function Controls({
     }
   }, [open])
 
-  const isWireframe = shapeType >= 11
+  const current = PATTERN_META.find(p => p.id === shapeType)
+
+  const patternButton = (p) => (
+    <button
+      key={p.id}
+      className={`shape-btn${shapeType === p.id ? ' active' : ''}${p.accent ? ` ${p.accent}` : ''}`}
+      onClick={() => {
+        // Clicking Tunnel again reverses the direction of travel.
+        if (p.id === 'tunnel' && shapeType === 'tunnel') setTunnelDir(d => d * -1)
+        else setShapeType(p.id)
+      }}
+      title={p.fold ? `${p.label} (mirrored)` : p.label}
+    >
+      {p.label}
+    </button>
+  )
 
   return (
     <>
@@ -154,31 +152,32 @@ export default function Controls({
             <button className="sb-close" onClick={() => setOpen(false)}><X size={14} /></button>
           </div>
 
-          {/* ── PATTERN ──────────────────────────────────────────── */}
-          <Section title="Pattern">
+          {/* ── PATTERNS ─────────────────────────────────────────── */}
+          <Section title="3D">
             <div className="shape-grid">
-              {SHAPES.map((s, i) => (
-                <button
-                  key={i}
-                  className={`shape-btn${shapeType === i ? ' active' : ''}${i >= 11 ? ' wire' : ''}${i === 10 ? ' watcher' : ''}`}
-                  onClick={() => {
-                    if (i === 9 && shapeType === 9) setTunnelDir(d => d * -1)
-                    else setShapeType(i)
-                  }}
-                  title={s.label}
-                >
-                  {s.label}
-                </button>
-              ))}
+              {PATTERN_META.filter(p => p.group === '3d').map(patternButton)}
             </div>
-            {isWireframe && (
+            {current?.accent === 'wire' && (
               <div className="wire-badge">WIREFRAME MODE</div>
+            )}
+          </Section>
+
+          <Section title="Particles">
+            <div className="shape-grid">
+              {PATTERN_META.filter(p => p.group === 'particles').map(patternButton)}
+            </div>
+            {engineStatus && (
+              <div className="engine-badge">
+                {engineStatus.error
+                  ? 'GRAPHICS UNAVAILABLE ON THIS DEVICE'
+                  : `${engineStatus.backend} · ${engineStatus.tier.toUpperCase()}`}
+              </div>
             )}
           </Section>
 
           {/* ── SYMMETRY ─────────────────────────────────────────── */}
           <Section title="Symmetry">
-            <div className="sym-row">
+            <div className={`sym-row${current && !current.fold ? ' sym-row--inactive' : ''}`}>
               {SYMMETRIES.map(n => (
                 <button
                   key={n}
