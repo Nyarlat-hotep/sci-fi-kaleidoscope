@@ -1,7 +1,7 @@
 import * as THREE from 'three/webgpu'
 import {
   float, vec3, sin, smoothstep, mix, positionLocal, normalLocal, normalize, mx_noise_float,
-  mx_fractal_noise_float,
+  mx_fractal_noise_float, varying,
 } from 'three/tsl'
 import { createStage } from './lib/stage'
 import { fresnel, disposeTree } from './lib/materials'
@@ -20,7 +20,7 @@ export default {
     const { u, palette, tier } = ctx
     const stage = createStage(ctx, { radius: 5.2, elev: 0.3, orbitSpeed: 0.03 })
 
-    const detail = { low: 32, mid: 56, high: 90 }[tier.name]
+    const detail = { low: 28, mid: 44, high: 64 }[tier.name]
     const geo = new THREE.IcosahedronGeometry(1.5, detail)
 
     const n = normalize(positionLocal)
@@ -35,9 +35,13 @@ export default {
     mat.positionNode = positionLocal.add(normalLocal.mul(
       ridge.mul(float(0.09).mul(u.breath.mul(0.8).add(1))).add(lobe),
     ))
+    // Evaluate the noise once per vertex and interpolate, instead of
+    // re-running fractal noise for every pixel.
+    const fieldV = varying(field)
+    const ridgeV = varying(ridge)
     const valley = u.pal3.mul(0.6).add(palette(float(0.15)).mul(0.08))
-    const crest  = palette(field.mul(0.8).add(0.5))
-    mat.colorNode = mix(valley, crest, ridge).mul(fresnel(1.6).mul(1.4).add(0.45))
+    const crest  = palette(fieldV.mul(0.8).add(0.5))
+    mat.colorNode = mix(valley, crest, ridgeV).mul(fresnel(1.6).mul(1.4).add(0.45))
       .add(palette(float(0.9)).mul(fresnel(4).mul(0.8)))
 
     const mesh = new THREE.Mesh(geo, mat)

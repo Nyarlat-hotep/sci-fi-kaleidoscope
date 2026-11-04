@@ -91,10 +91,7 @@ export default function Controls({
   }, [])
 
   useEffect(() => {
-    if (open) {
-      setTabHidden(false)
-      return
-    }
+    if (open) return
     let timer = setTimeout(() => setTabHidden(true), 2000)
     function onActivity() {
       setTabHidden(false)
@@ -131,7 +128,7 @@ export default function Controls({
     <>
       {/* ── Edge tab — fixed independently so hit area never moves during animation ── */}
       <button
-        className={`sidebar-tab${open ? ' sidebar-tab--open' : ''}${tabHidden ? ' sidebar-tab--hidden' : ''}`}
+        className={`sidebar-tab${open ? ' sidebar-tab--open' : ''}${tabHidden && !open ? ' sidebar-tab--hidden' : ''}`}
         onClick={() => setOpen(o => !o)}
         aria-label={open ? 'Close controls' : 'Open controls'}
       >

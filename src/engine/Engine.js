@@ -11,11 +11,22 @@ import { PATTERN_META } from '../patterns/meta'
 
 // Quality tiers. The engine starts at a tier guessed from the device and
 // steps down whenever the frame rate stays low.
+//   dpr      — max device-pixel ratio for the canvas (Retina is 2; 1.5 is
+//              visually near-identical with glow on, at ~56% of the pixels)
+//   rayRes   — ray-marched scenes render at this fraction of CSS pixels,
+//              independent of dpr (they're the most expensive per pixel)
 export const TIERS = [
-  { name: 'low',  dpr: 1,   particles: 1 << 15, bloom: false, steps: 44, renderScale: 0.5  },
-  { name: 'mid',  dpr: 1.5, particles: 1 << 17, bloom: true,  steps: 64, renderScale: 0.7  },
-  { name: 'high', dpr: 2,   particles: 1 << 18, bloom: true,  steps: 96, renderScale: 1.0  },
+  { name: 'low',  dpr: 1,    particles: 1 << 15, bloom: false, steps: 44, rayRes: 0.5  },
+  { name: 'mid',  dpr: 1.25, particles: 1 << 16, bloom: true,  steps: 60, rayRes: 0.6  },
+  { name: 'high', dpr: 1.5,  particles: 1 << 17, bloom: true,  steps: 80, rayRes: 0.75 },
 ]
+
+// Cap the frame rate: 120 Hz+ displays would otherwise render twice as many
+// frames for no visible gain on slow-moving visuals. A frame is skipped only
+// when it arrives much sooner than 1/60 s, so 60 and 90 Hz displays run at
+// their native rate and 120 Hz drops to every other frame.
+const MAX_FPS = 60
+const MIN_FRAME_MS = (1000 / MAX_FPS) * 0.6
 
 const FPS_FLOOR       = 42     // below this for a whole window → step down a tier
 const FPS_WINDOW      = 2.5    // seconds per measurement window
@@ -95,7 +106,12 @@ export class Engine {
     this.reportStatus()
     if (this.patternId) await this.build()
     if (this.disposed) return
-    renderer.setAnimationLoop(() => this.frame())
+    this.lastFrameTime = -Infinity
+    renderer.setAnimationLoop((time) => {
+      if (time - this.lastFrameTime < MIN_FRAME_MS) return
+      this.lastFrameTime = time
+      this.frame()
+    })
   }
 
   get tier() { return TIERS[this.tierIndex] }
@@ -119,6 +135,11 @@ export class Engine {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.tier.dpr))
     this.renderer.setSize(w, h, false)
     this.u.aspect.value = w / h
+    // Keep ray-marched scenes at the tier's CSS-pixel resolution even if the
+    // pixel ratio changed (e.g. window dragged to a different display).
+    if (this.scenePass && this.def?.lowRes) {
+      this.scenePass.setResolutionScale(this.tier.rayRes / this.renderer.getPixelRatio())
+    }
     this.inst?.resize?.(w, h)
   }
 
@@ -166,7 +187,7 @@ export class Engine {
     const u = this.u
     const def = this.def
     const scenePass = pass(this.inst.scene, this.inst.camera)
-    if (def.lowRes) scenePass.setResolutionScale(this.tier.renderScale)
+    if (def.lowRes) scenePass.setResolutionScale(this.tier.rayRes / this.renderer.getPixelRatio())
     // Mirrored wrapping means any fold sample that lands past the edge of the
     // frame reflects back in seamlessly instead of smearing.
     const rtTex = scenePass.renderTarget.texture
@@ -238,10 +259,15 @@ export class Engine {
     if (p.breathMode !== this.lastBreathMode) {
       resetBreath(this.breath)
       if (!p.breathMode) this.onBreathPhase?.({ label: null, progress: 0 })
+      this.lastCue = null
       this.lastBreathMode = p.breathMode
     }
     const cue = stepBreath(this.breath, p, dt)
-    if (cue) this.onBreathPhase?.(cue)
+    // Only push breath UI updates to React when they'd visibly change.
+    if (cue && (cue.label !== this.lastCue?.label || Math.abs(cue.progress - this.lastCue.progress) >= 0.01)) {
+      this.lastCue = cue
+      this.onBreathPhase?.(cue)
+    }
     const bc = this.breath.current
 
     const slow = p.breathMode ? 0.28 + 0.72 * (1 - bc.breath * 0.6) : 1
