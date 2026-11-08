@@ -1,0 +1,95 @@
+.camcorder {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  color: rgba(245, 245, 235, 0.88);
+  text-shadow: 0 0 4px rgba(255, 255, 255, 0.35), 1px 1px 0 rgba(0, 0, 0, 0.5);
+  letter-spacing: 0.08em;
+  z-index: 5;
+}
+
+.camcorder-rec,
+.camcorder-counter,
+.camcorder-date,
+.camcorder-mute {
+  position: absolute;
+}
+
+.camcorder-rec {
+  top: 28px;
+  left: 32px;
+  font-size: 1.15rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.camcorder-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #ff2a2a;
+  box-shadow: 0 0 8px #ff2a2a;
+  animation: camcorder-blink 1s steps(1) infinite;
+}
+
+.camcorder-counter {
+  top: 58px;
+  left: 32px;
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+.camcorder-date {
+  bottom: 28px;
+  left: 32px;
+  font-size: 0.95rem;
+  white-space: pre;
+}
+
+.camcorder-mute {
+  top: 24px;
+  right: 72px;
+  pointer-events: auto;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(245, 245, 235, 0.35);
+  border-radius: 6px;
+  color: inherit;
+  padding: 6px 8px;
+  cursor: pointer;
+  display: flex;
+}
+
+.camcorder-mute:hover {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.camcorder-hint {
+  position: absolute;
+  bottom: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.7rem;
+  white-space: nowrap;
+  opacity: 0;
+  animation: camcorder-hint 7s ease-out forwards;
+}
+
+@keyframes camcorder-blink {
+  50% { opacity: 0; }
+}
+
+@keyframes camcorder-hint {
+  0%, 10% { opacity: 0; }
+  20%, 70% { opacity: 0.85; }
+  100% { opacity: 0; }
+}
+
+@media (max-width: 600px) {
+  .camcorder-rec { top: 20px; left: 18px; font-size: 1rem; }
+  .camcorder-counter { top: 46px; left: 18px; }
+  .camcorder-date { bottom: 20px; left: 18px; font-size: 0.75rem; }
+  .camcorder-mute { top: 16px; right: 60px; }
+  .camcorder-hint { white-space: normal; width: 80%; text-align: center; bottom: 52px; }
+}

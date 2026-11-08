@@ -638,3 +638,18 @@
   color: color-mix(in srgb, #b98cff 75%, transparent);
   text-align: center;
 }
+
+/* ── Explore modes ───────────────────────────────────────────────────── */
+.sb-section--inactive {
+  opacity: 0.35;
+  transition: opacity 0.2s;
+}
+
+.explore-hint {
+  margin-top: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.46rem;
+  letter-spacing: 0.18em;
+  color: color-mix(in srgb, var(--sb-accent) 70%, transparent);
+  text-align: center;
+}

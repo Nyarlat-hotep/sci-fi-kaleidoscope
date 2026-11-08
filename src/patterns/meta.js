@@ -1,7 +1,7 @@
 // Lightweight list of patterns for the controls UI. Kept separate from the
 // pattern modules so the sidebar doesn't pull three/webgpu into the initial
 // bundle. Order here is the button order.
-//   group  — '3d' (geometry / ray-marched scenes) or 'particles'
+//   group  — '3d' (geometry / ray-marched scenes), 'particles' or 'explore'
 //   accent — optional button style ('wire' | 'watcher')
 export const PATTERN_META = [
   { id: 'circuits',       label: 'Circuits',  group: '3d', fold: true },
@@ -23,4 +23,5 @@ export const PATTERN_META = [
   { id: 'singularity',    label: 'Singularity', group: 'particles', fold: false },
   { id: 'morph',          label: 'Morph',     group: 'particles', fold: false },
   { id: 'warp',           label: 'Warp',      group: 'particles', fold: false },
+  { id: 'liminal',        label: 'Liminal Space', group: 'explore', fold: false },
 ]

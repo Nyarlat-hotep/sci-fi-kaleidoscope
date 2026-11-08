@@ -17,6 +17,7 @@ import swarm from './swarm'
 import singularity from './singularity'
 import morph from './morph'
 import warp from './warp'
+import liminal from './liminal'
 
 // Registry of every pattern the engine can render. Each entry:
 //   id, label     — identity + button text (mirrored in ./meta.js for the UI)
@@ -24,11 +25,13 @@ import warp from './warp'
 //   lowRes        — render the scene below screen resolution (ray-marched)
 //   foldAngle     — optional wedge direction for the fold (radians)
 //   bloom         — optional { strength, radius, threshold }
+//   raw           — skip the fold / color grade; the pattern may supply post(tex)
 //   create(ctx)   — returns { scene, camera, init?, update?, resize?, dispose? }
 export const PATTERNS = [
   circuits, crystals, plasma, geo, fractalFlight, moire, truchet, turing, tunnel,
   watcher, wireBox, sphere, wireGrid, hexMesh,
   nebula, swarm, singularity, morph, warp,
+  liminal,
 ]
 
 export function getPattern(id) {

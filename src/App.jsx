@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import EngineView from './engine/EngineView'
 import Controls from './components/Controls'
 import BreathCue from './components/BreathCue'
+import CamcorderOverlay from './components/CamcorderOverlay'
 import { PALETTES } from './data/palettes'
 
 function hexToRgb01(hex) {
@@ -87,6 +88,7 @@ export default function App() {
         setTunnelDir={setTunnelDir}
         breathMode={breathMode}       setBreathMode={setBreathMode}
       />
+      {shapeType === 'liminal' && <CamcorderOverlay />}
       <BreathCue phase={breathPhase} />
     </>
   )

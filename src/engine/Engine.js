@@ -163,7 +163,7 @@ export class Engine {
     try {
       inst = def.create({
         u: this.u, palette: this.palette, tier: this.tier,
-        renderer: this.renderer, isWebGPU: this.isWebGPU,
+        renderer: this.renderer, isWebGPU: this.isWebGPU, canvas: this.canvas,
       })
       await inst.init?.()
     } catch (err) {
@@ -187,11 +187,25 @@ export class Engine {
   }
 
   // Post chain: scene → (mirror fold) → bloom → color grade.
+  // `raw` patterns skip all of it and supply their own optional post effect.
   buildPost() {
     const u = this.u
     const def = this.def
     const scenePass = pass(this.inst.scene, this.inst.camera)
     if (def.lowRes) scenePass.setResolutionScale(this.tier.rayRes / this.renderer.getPixelRatio())
+    this.scenePass = scenePass
+
+    if (def.raw) {
+      const tex = scenePass.getTextureNode()
+      let col = this.inst.post ? this.inst.post(tex) : tex.sample(screenUV).rgb
+      if (this.tier.bloom && def.bloom) {
+        this.bloomPass = bloom(tex, def.bloom.strength, def.bloom.radius, def.bloom.threshold)
+        col = col.add(this.bloomPass.rgb)
+      }
+      this.pipeline.outputNode = vec4(clamp(col, 0, 1), 1)
+      this.pipeline.needsUpdate = true
+      return
+    }
     // Mirrored wrapping means any fold sample that lands past the edge of the
     // frame reflects back in seamlessly instead of smearing.
     const rtTex = scenePass.renderTarget.texture
@@ -240,7 +254,6 @@ export class Engine {
     col = col.sub(0.5).mul(u.contrast).add(0.5).mul(u.brightness)
     col = col.mul(float(1).sub(smoothstep(0.74, 1.08, length(p0)).mul(0.28)))
 
-    this.scenePass = scenePass
     this.pipeline.outputNode = vec4(clamp(col, 0, 1), 1)
     this.pipeline.needsUpdate = true
   }
@@ -274,7 +287,8 @@ export class Engine {
     }
     const bc = this.breath.current
 
-    const slow = p.breathMode ? 0.28 + 0.72 * (1 - bc.breath * 0.6) : 1
+    // Raw patterns (e.g. Liminal Space) run in real time, untouched by breath.
+    const slow = p.breathMode && !this.def?.raw ? 0.28 + 0.72 * (1 - bc.breath * 0.6) : 1
     u.time.value     += dt * slow
     u.animTime.value += dt * slow * p.speed
     u.speed.value     = p.speed

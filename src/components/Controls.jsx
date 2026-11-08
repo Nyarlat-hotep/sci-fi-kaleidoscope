@@ -32,9 +32,9 @@ function colorToHsl(hex) {
 
 const SYMMETRIES = [2, 4, 6, 8, 12]
 
-function Section({ title, children }) {
+function Section({ title, inactive = false, children }) {
   return (
-    <div className="sb-section">
+    <div className={`sb-section${inactive ? ' sb-section--inactive' : ''}`}>
       <div className="sb-section-title">{title}</div>
       {children}
     </div>
@@ -108,6 +108,8 @@ export default function Controls({
   }, [open])
 
   const current = PATTERN_META.find(p => p.id === shapeType)
+  // Explore modes ignore every visual control below the pattern list.
+  const exploring = current?.group === 'explore'
 
   const patternButton = (p) => (
     <button
@@ -163,6 +165,15 @@ export default function Controls({
             <div className="shape-grid">
               {PATTERN_META.filter(p => p.group === 'particles').map(patternButton)}
             </div>
+          </Section>
+
+          <Section title="Explore">
+            <div className="shape-grid">
+              {PATTERN_META.filter(p => p.group === 'explore').map(patternButton)}
+            </div>
+            {exploring && (
+              <div className="explore-hint">ARROWS / WASD TO WALK · DRAG TO LOOK</div>
+            )}
             {engineStatus && (
               <div className="engine-badge">
                 {engineStatus.error
@@ -173,7 +184,7 @@ export default function Controls({
           </Section>
 
           {/* ── SYMMETRY ─────────────────────────────────────────── */}
-          <Section title="Symmetry">
+          <Section title="Symmetry" inactive={exploring}>
             <div className={`sym-row${current && !current.fold ? ' sym-row--inactive' : ''}`}>
               {SYMMETRIES.map(n => (
                 <button
@@ -188,7 +199,7 @@ export default function Controls({
           </Section>
 
           {/* ── PALETTE ──────────────────────────────────────────── */}
-          <Section title="Palette">
+          <Section title="Palette" inactive={exploring}>
             <div className="palette-row">
               {PALETTES.map((p, i) => (
                 <button
@@ -238,7 +249,7 @@ export default function Controls({
           </Section>
 
           {/* ── COLOR ────────────────────────────────────────────── */}
-          <Section title="Color">
+          <Section title="Color" inactive={exploring}>
             <SliderRow label="Hue Spread"    value={hueShift}      onChange={setHueShift}      min={0}   max={1}   step={0.01} />
             <SliderRow label="Hue Cycle"     value={hueCycleSpeed} onChange={setHueCycleSpeed} min={0}   max={1}   step={0.01} />
             <SliderRow label="Brightness"    value={brightness}    onChange={setBrightness}    min={0.3} max={2.0} step={0.05} />
@@ -246,7 +257,7 @@ export default function Controls({
           </Section>
 
           {/* ── MOTION ───────────────────────────────────────────── */}
-          <Section title="Motion">
+          <Section title="Motion" inactive={exploring}>
             <SliderRow label="Speed"         value={speed}         onChange={setSpeed}         min={0.05} max={3}  step={0.05} />
             <SliderRow label="Spin"          value={rotSpeed}      onChange={setRotSpeed}      min={0}    max={1}  step={0.01} />
             <SliderRow label="Zoom Pulse"    value={zoomPulse}     onChange={setZoomPulse}     min={0}    max={1}  step={0.01} />
@@ -255,7 +266,7 @@ export default function Controls({
           </Section>
 
           {/* ── MEDITATE ─────────────────────────────────────────── */}
-          <Section title="Meditate">
+          <Section title="Meditate" inactive={exploring}>
             <div className="breath-mode-list">
               {BREATH_MODES.map(m => {
                 const active = breathMode === m.id
