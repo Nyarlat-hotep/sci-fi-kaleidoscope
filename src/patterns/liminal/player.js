@@ -1,17 +1,23 @@
-import { CELL, EYE, PLAYER_R, WALK_SPEED, RUN_SPEED } from './constants'
-import { floorAt } from './layout'
+import { CELL, EYE, PLAYER_R, WALK_SPEED, RUN_SPEED, STEP_UP, ESC_SPEED } from './constants'
+import { floorAt, beltAt, openestDirection } from './layout'
 
 // First-person controls: arrows / WASD to walk (left/right arrows turn,
-// A/D strafe, Shift to hurry), drag with the mouse to look around. On touch
-// screens the left half of the screen is a walk stick, the right half looks.
+// A/D strafe, Shift to hurry). Clicking the view captures the mouse (pointer
+// lock) so moving it looks around; Esc releases it. Where pointer lock isn't
+// available, dragging still looks. On touch screens the left half of the
+// screen is a walk stick, the right half looks.
 
 const TURN_RATE = 1.9          // rad/s for arrow-key turning
 const LOOK_SENS = 0.0032       // rad per pixel dragged
+const LOCK_SENS = 0.0022       // rad per pixel of captured mouse movement
 const PITCH_LIMIT = 1.15
 const STICK_RANGE = 70         // px of drag for full touch-stick deflection
-const STEP_LENGTH = 0.75       // meters per footstep
+const STEP_LENGTH = 0.9        // meters per footstep
 const HEAD_BOB = 0.035
 const HEADROOM = 1.9           // obstacles starting higher than this above your feet are overhead
+
+// Yaw that looks along each layout direction (forward is (−sin yaw, −cos yaw)).
+const START_YAW = [Math.PI / 2, -Math.PI / 2, 0, Math.PI]
 
 const MOVE_KEYS = {
   ArrowUp: 'fwd', KeyW: 'fwd', ArrowDown: 'back', KeyS: 'back',
@@ -34,7 +40,7 @@ export class Player {
     this.vx = 0
     this.vz = 0
     this.y = 0                // smoothed floor height under the player
-    this.yaw = 0
+    this.yaw = START_YAW[openestDirection(0, 0)]   // face open space, not a wall
     this.pitch = 0
     this.stride = 0           // distance walked, drives head-bob and footsteps
     this.held = new Set()
@@ -60,6 +66,8 @@ export class Player {
         const mode = e.clientX < window.innerWidth / 2 ? 'move' : 'look'
         this.touches.set(e.pointerId, { mode, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY })
       } else if (e.button === 0) {
+        if (this.locked) return
+        this.requestLock()
         this.drag = { x: e.clientX, y: e.clientY }
         canvas.style.cursor = 'grabbing'
       }
@@ -68,6 +76,10 @@ export class Player {
       try { canvas.setPointerCapture(e.pointerId) } catch { /* pointer already gone */ }
     }
     this.onPointerMove = (e) => {
+      if (this.locked) {
+        this.lookBy(e.movementX, e.movementY, LOCK_SENS)
+        return
+      }
       const t = this.touches.get(e.pointerId)
       if (t) {
         if (t.mode === 'look') this.look(e.clientX - t.x, e.clientY - t.y)
@@ -79,11 +91,15 @@ export class Player {
         this.drag.y = e.clientY
       }
     }
+    this.onLockChange = () => {
+      this.drag = null
+      canvas.style.cursor = this.locked ? 'none' : 'pointer'
+    }
     this.onPointerUp = (e) => {
       this.touches.delete(e.pointerId)
-      if (e.pointerType !== 'touch') {
+      if (e.pointerType !== 'touch' && !this.locked) {
         this.drag = null
-        canvas.style.cursor = 'grab'
+        canvas.style.cursor = 'pointer'
       }
     }
 
@@ -94,12 +110,31 @@ export class Player {
     canvas.addEventListener('pointermove', this.onPointerMove)
     canvas.addEventListener('pointerup', this.onPointerUp)
     canvas.addEventListener('pointercancel', this.onPointerUp)
-    canvas.style.cursor = 'grab'
+    document.addEventListener('pointerlockchange', this.onLockChange)
+    canvas.style.cursor = 'pointer'
+  }
+
+  get locked() {
+    return document.pointerLockElement === this.canvas
+  }
+
+  requestLock() {
+    if (!this.canvas.requestPointerLock) return
+    try {
+      // Raw (unaccelerated) movement where supported; some browsers return
+      // a promise that rejects if the request is refused.
+      const req = this.canvas.requestPointerLock({ unadjustedMovement: true })
+      if (req?.catch) req.catch(() => this.canvas.requestPointerLock()?.catch?.(() => {}))
+    } catch { /* not allowed here; drag-to-look still works */ }
   }
 
   look(dx, dy) {
-    this.yaw -= dx * LOOK_SENS
-    this.pitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, this.pitch - dy * LOOK_SENS))
+    this.lookBy(dx, dy, LOOK_SENS)
+  }
+
+  lookBy(dx, dy, sens) {
+    this.yaw -= dx * sens
+    this.pitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, this.pitch - dy * sens))
   }
 
   // Returns how many footsteps landed this frame (usually 0 or 1).
@@ -130,10 +165,14 @@ export class Player {
     // Axis-separated moves let you slide along walls instead of sticking.
     const boxes = this.world.nearbyBoxes(this.x, this.z, this.boxes)
     const feet = floorAt(this.x, this.z)
-    const nx = this.x + this.vx * dt
+    // Moving escalators carry you along on top of your own walking.
+    const belt = beltAt(this.x, this.z)
+    const bx = belt ? belt[0] * ESC_SPEED : 0
+    const bz = belt ? belt[1] * ESC_SPEED : 0
+    const nx = this.x + (this.vx + bx) * dt
     if (!collides(nx, this.z, feet, boxes)) this.x = nx
     else this.vx = 0
-    const nz = this.z + this.vz * dt
+    const nz = this.z + (this.vz + bz) * dt
     if (!collides(this.x, nz, feet, boxes)) this.z = nz
     else this.vz = 0
     // Ease onto stairs and ledges rather than snapping.
@@ -164,16 +203,19 @@ export class Player {
     this.canvas.removeEventListener('pointermove', this.onPointerMove)
     this.canvas.removeEventListener('pointerup', this.onPointerUp)
     this.canvas.removeEventListener('pointercancel', this.onPointerUp)
+    document.removeEventListener('pointerlockchange', this.onLockChange)
+    if (this.locked) document.exitPointerLock()
     this.canvas.style.cursor = ''
   }
 }
 
 // Circle (player) vs axis-aligned boxes; ignores anything that starts above
-// head height relative to the player's feet (door lintels, balconies).
+// head height (door lintels, balconies) or that you can step over (pool
+// edges, the shopfront below a gallery you're standing on).
 function collides(x, z, feet, boxes) {
   const r2 = PLAYER_R * PLAYER_R
   for (const b of boxes) {
-    if (b[2] > feet + HEADROOM) continue
+    if (b[2] > feet + HEADROOM || b[3] <= feet + STEP_UP) continue
     const qx = x < b[0] ? b[0] : x > b[1] ? b[1] : x
     const qz = z < b[4] ? b[4] : z > b[5] ? b[5] : z
     const dx = x - qx

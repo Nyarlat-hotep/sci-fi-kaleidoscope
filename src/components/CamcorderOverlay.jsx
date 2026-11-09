@@ -45,7 +45,7 @@ export default function CamcorderOverlay() {
         {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
       </button>
       <div className="camcorder-date">{stamp(now)}</div>
-      <div className="camcorder-hint">ARROWS / WASD TO WALK · DRAG TO LOOK · SHIFT TO HURRY</div>
+      <div className="camcorder-hint">CLICK TO LOOK WITH MOUSE · ARROWS / WASD TO WALK · SHIFT TO HURRY · ESC FREES MOUSE</div>
     </div>
   )
 }

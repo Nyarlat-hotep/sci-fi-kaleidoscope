@@ -3,9 +3,12 @@ import {
   uniform, float, vec2, vec3, dot, mix, sin, abs, length, smoothstep, hash, screenUV,
   screenCoordinate,
 } from 'three/tsl'
-import { CELL } from './constants'
-import { lightAt, flicker, LIGHT_ON, LIGHT_FLICKER } from './layout'
-import { createTextures } from './textures'
+import { CELL, RUN_SPEED } from './constants'
+import {
+  lightAt, flicker, cellKind, chunkAt, LIGHT_ON, LIGHT_FLICKER, KIND_POOL, THEME_MALL, THEME_POOL,
+} from './layout'
+import { createTextures, disposeTextures } from './textures'
+import { THEME_FOG } from './materials'
 import { World } from './world'
 import { Player } from './player'
 import { liminalAudio } from './audio'
@@ -25,6 +28,8 @@ export default {
 
   create({ canvas }) {
     const scene = new THREE.Scene()
+    scene.background = new THREE.Color(...THEME_FOG[0])
+    const fogTarget = new THREE.Color()
     const camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.05, 60)
     camera.rotation.order = 'YXZ'
 
@@ -78,7 +83,15 @@ export default {
         time.value += dt
         const steps = player.update(dt)
         world.update(player.x, player.z)
-        liminalAudio.update({ ...sampleLights(), steps, pace: Math.min(1, player.speed / 3) })
+        const area = chunkAt(player.x, player.z)
+        scene.background.lerp(fogTarget.setRGB(...THEME_FOG[area.theme]), Math.min(1, dt * 2))
+        const wading = cellKind(Math.floor(player.x / CELL), Math.floor(player.z / CELL)) === KIND_POOL
+        liminalAudio.update({
+          ...sampleLights(), steps, pace: Math.min(1, player.speed / RUN_SPEED),
+          surface: wading ? 'water' : area.theme === THEME_MALL || area.theme === THEME_POOL ? 'tile' : 'carpet',
+          mall: area.theme === THEME_MALL ? 1 : 0,
+          water: area.theme === THEME_POOL || area.props.some((p) => p.type === 'fountain') ? 1 : 0,
+        })
 
         grainSeed.value = (grainSeed.value + 7919) % 1e6
         if (glitchLeft > 0) {
@@ -114,7 +127,7 @@ export default {
         liminalAudio.disable()
         player.dispose()
         world.dispose()
-        for (const t of Object.values(textures)) t.dispose()
+        disposeTextures(textures)
       },
     }
   },
